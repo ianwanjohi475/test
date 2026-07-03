@@ -95,18 +95,33 @@ for i in $(seq 1 60); do
   serial=$(adb devices 2>/dev/null | awk '$2=="device"{print $1; exit}' || true)
   if [[ -n "$serial" ]]; then break; fi
   echo "    still booting... ($i/60)"
+  # every 30s, show what adb actually sees so a stuck boot is visible
+  if (( i % 10 == 0 )); then
+    echo "    -- adb device list right now (empty = emulator not started yet):"
+    adb devices 2>/dev/null | sed 's/^/       /' || true
+  fi
   sleep 3
 done
 
 if [[ -z "$serial" ]]; then
-  cat >&2 <<'EOF'
-!! The phone didn't come online after ~3 minutes. Check what the emulator
-   is doing:
-
-     docker logs --tail 50 cloudphone       # look for errors (e.g. no KVM)
-     docker restart cloudphone              # then wait ~1 min
-     bash windows/phone-window.sh           # try again
-EOF
+  {
+    echo "!! The phone didn't come online after ~3 minutes. Diagnostics:"
+    echo
+    echo "---- adb devices (via container's adb server) ----"
+    adb devices 2>&1 | sed 's/^/   /' || true
+    echo "---- emulator health inside the container ----"
+    docker inspect --format 'container status: {{.State.Status}}, health: {{if .State.Health}}{{.State.Health.Status}}{{else}}n/a{{end}}' cloudphone 2>/dev/null || true
+    docker exec cloudphone sh -c 'ls -l /dev/kvm 2>&1' | sed 's/^/   /' || true
+    echo "---- last 40 lines of container logs ----"
+    docker logs --tail 40 cloudphone 2>&1 | sed 's/^/   /' || true
+    echo
+    echo "   Usual fixes:"
+    echo "     - '/dev/kvm: No such file' above  ->  virtualization is off:"
+    echo "         run  bash windows/quickstart.sh  and follow its steps"
+    echo "     - otherwise:  docker restart cloudphone  , wait ~1 min, re-run:"
+    echo "         bash windows/phone-window.sh"
+    echo "   Send this whole output if you need help."
+  } >&2
   exit 1
 fi
 echo "    Phone is online as '$serial' ✅"
