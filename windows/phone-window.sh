@@ -41,6 +41,21 @@ if ! docker ps --format '{{.Names}}' | grep -qx cloudphone; then
   exit 1
 fi
 
+# scrcpy needs its tunnel port (27183) published from the container (see
+# docker-compose.yml). If the running container predates that mapping, the
+# stream can never reach your desktop — recreate the container first.
+if ! docker port cloudphone 27183/tcp >/dev/null 2>&1; then
+  cat >&2 <<'EOF'
+!! The phone container was started without the scrcpy tunnel port (27183).
+   Apply the updated docker-compose.yml (your apps/data are kept):
+
+     cd windows && docker compose up -d
+
+   then run this script again once the phone has rebooted (~1 min).
+EOF
+  exit 1
+fi
+
 echo "==> Starting the phone's adb server (inside the container)..."
 # (Re)start the container's adb server listening on all interfaces so your PC
 # can reach it via the forwarded 127.0.0.1:5037. Serves localhost too, so the
@@ -81,7 +96,17 @@ echo "    Phone is online as '$serial' ✅"
 extra=(--window-borderless)
 [[ -n "${PLAIN:-}" ]] && extra=()
 
+# ---- tunnel mode: required because the adb server is REMOTE (in Docker) ----
+# By default scrcpy uses "adb reverse": the phone connects BACK to the machine
+# running the adb server — i.e. INTO the container, where no scrcpy client is
+# listening. The connection dies, scrcpy kills its server on the phone (the
+# "Killed" + NullPointerException in the cleanup thread you may have seen),
+# and reports "Server connection failed".
+# Fix (scrcpy's documented remote-adb setup, doc/tunnels.md): force "adb
+# forward" pinned to port 27183, which the container publishes on
+# localhost:27183 — the video/control/input stream flows through it.
 exec scrcpy -s "$serial" \
+  --force-adb-forward --port=27183 \
   --window-title "Cloud Phone" \
   --stay-awake --no-audio --max-fps 60 \
   "${extra[@]}"

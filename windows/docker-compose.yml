@@ -31,6 +31,11 @@ services:
       - "127.0.0.1:5038:5037"        # emulator's own adb SERVER (for scrcpy) —
                                      # host 5038 avoids clashing with your PC's
                                      # own adb on 5037; localhost-only.
+      - "127.0.0.1:27183:27183"      # scrcpy tunnel: scrcpy asks the container's
+                                     # adb to "adb forward" the video/control
+                                     # socket on this port; it must be published
+                                     # or scrcpy exits with "Server connection
+                                     # failed". Localhost-only.
     volumes:
       - phone-data:/home/androidusr  # apps & settings survive restarts
     shm_size: 2g                     # bigger shared memory = fewer app crashes
