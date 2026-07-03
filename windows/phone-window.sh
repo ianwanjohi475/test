@@ -67,23 +67,44 @@ docker exec -d cloudphone adb -a nodaemon server >/dev/null 2>&1 || true
 # port 5038, so it doesn't collide with your PC's own adb on 5037).
 export ADB_SERVER_SOCKET=tcp:localhost:5038
 
-echo "==> Waiting for the phone to come online..."
+# Right after "docker compose up -d" the freshly (re)started adb server needs
+# a few seconds before it accepts connections. Until then every adb call
+# exits non-zero — and with `set -e` that used to kill this script silently.
+echo "==> Waiting for the container's adb server to answer (localhost:5038)..."
+adb_up=""
+for i in $(seq 1 30); do
+  if adb devices >/dev/null 2>&1; then adb_up=1; break; fi
+  sleep 1
+done
+if [[ -z "$adb_up" ]]; then
+  cat >&2 <<'EOF'
+!! Can't reach the adb server on localhost:5038 after 30s. Fix:
+
+     cd windows && docker compose up -d     # (re)applies the 5038 port mapping
+     docker restart cloudphone
+     bash windows/phone-window.sh           # try again in ~1 min
+EOF
+  exit 1
+fi
+
+echo "==> Waiting for the phone to come online (first boot can take ~3 min)..."
 serial=""
-for i in $(seq 1 40); do
+for i in $(seq 1 60); do
   # first online/device-state entry from the container's adb server
-  serial=$(adb devices 2>/dev/null | awk '$2=="device"{print $1; exit}')
+  # ("|| true" so one flaky adb call can't abort the script under set -e)
+  serial=$(adb devices 2>/dev/null | awk '$2=="device"{print $1; exit}' || true)
   if [[ -n "$serial" ]]; then break; fi
-  echo "    still booting... ($i/40)"
+  echo "    still booting... ($i/60)"
   sleep 3
 done
 
 if [[ -z "$serial" ]]; then
   cat >&2 <<'EOF'
-!! Couldn't reach the phone after ~2 minutes. It may still be booting, or
-   the adb-server port (5037) isn't published yet. Fix:
+!! The phone didn't come online after ~3 minutes. Check what the emulator
+   is doing:
 
-     cd windows && docker compose up -d     # applies the adb-server mapping
-     docker restart cloudphone              # wait ~40s for it to boot
+     docker logs --tail 50 cloudphone       # look for errors (e.g. no KVM)
+     docker restart cloudphone              # then wait ~1 min
      bash windows/phone-window.sh           # try again
 EOF
   exit 1
