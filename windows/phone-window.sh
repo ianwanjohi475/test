@@ -134,10 +134,14 @@ if [[ -z "$serial" ]]; then
     docker exec cloudphone sh -c 'ls -l /dev/kvm 2>&1' | sed 's/^/   /' || true
     echo "---- last 40 lines of container logs ----"
     docker logs --tail 40 cloudphone 2>&1 | sed 's/^/   /' || true
+    echo "---- emulator launcher log (the REAL crash reason) ----"
+    docker exec cloudphone sh -c 'tail -n 40 "$LOG_PATH"/device.stdout.log 2>/dev/null || tail -n 40 /home/androidusr/logs/device.stdout.log 2>/dev/null || echo "(no device.stdout.log)"' 2>&1 | sed 's/^/   /' || true
     echo
     echo "   Usual fixes:"
     echo "     - '/dev/kvm: No such file' above  ->  virtualization is off:"
     echo "         run  bash windows/quickstart.sh  and follow its steps"
+    echo "     - launcher log shows a crash/traceback -> wipe the phone's data:"
+    echo "         bash windows/factory-reset.sh"
     echo "     - otherwise:  docker restart cloudphone  , wait ~1 min, re-run:"
     echo "         bash windows/phone-window.sh"
     echo "   Send this whole output if you need help."

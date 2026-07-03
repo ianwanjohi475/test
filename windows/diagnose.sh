@@ -43,8 +43,11 @@ docker exec cloudphone adb devices 2>&1
 section "Container: last 80 log lines"
 docker logs --tail 80 cloudphone 2>&1
 
-section "Container: supervisor service logs (emulator's own errors live here)"
-docker exec cloudphone sh -c 'tail -n 30 /var/log/supervisor/*.log 2>/dev/null || true' 2>&1
+section "Emulator launcher log (device.stdout.log — the REAL crash reason)"
+docker exec cloudphone sh -c 'tail -n 60 "$LOG_PATH"/device.stdout.log 2>/dev/null || tail -n 60 /home/androidusr/logs/device.stdout.log 2>/dev/null || echo "(no device.stdout.log found)"' 2>&1
+
+section "All service logs present"
+docker exec cloudphone sh -c 'ls -l "$LOG_PATH" 2>/dev/null || ls -l /home/androidusr/logs 2>/dev/null' 2>&1
 
 echo
 echo "================================================================"
