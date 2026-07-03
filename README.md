@@ -17,39 +17,31 @@ often taken.
 
 ## 🅰️ Option A — Run on YOUR Windows PC (Docker + Ubuntu/WSL2)
 
-### 1. One-time Windows prep (2 minutes)
-
-The phone needs hardware virtualization inside WSL2. On Windows:
-
-1. Create/edit the file `C:\Users\<YourName>\.wslconfig` with:
-
-   ```ini
-   [wsl2]
-   nestedVirtualization=true
-   memory=10GB
-   ```
-
-2. In PowerShell: `wsl --shutdown`, then reopen your Ubuntu terminal.
-
-*(Needs Windows 11 or a recent Windows 10 build, and "Virtualization:
-Enabled" in Task Manager → Performance → CPU. If it says Disabled, turn on
-Intel VT-x / AMD SVM in your BIOS.)*
-
-### 2. Start the phone
+### 1. Start it (one command — it configures Windows for you)
 
 In your **Ubuntu (WSL2) terminal**:
 
 ```bash
-git clone https://github.com/ianwanjohi475/test.git cloud-phone
-cd cloud-phone/windows
-bash setup-windows.sh
+git clone -b claude/cloud-phone-apps-hupje2 https://github.com/ianwanjohi475/test.git cloud-phone
+cd cloud-phone
+bash windows/quickstart.sh
 ```
 
-The script checks Docker, checks `/dev/kvm`, checks that ports 6080/5557 are
-free (and tells you exactly what to do if not), then boots the phone.
-First run downloads ~1.5 GB and boots in 2–5 minutes.
+`quickstart.sh` **writes `C:\Users\<You>\.wslconfig` for you** (turns on
+nested virtualization and picks a RAM size that fits your PC), then boots the
+phone. If Windows needs one WSL restart first, it prints the exact two
+commands — run `wsl --shutdown` in PowerShell, reopen Ubuntu, run
+`bash windows/quickstart.sh` again, and the second run boots the phone.
 
-### 3. Use it
+It also pre-checks Docker, `/dev/kvm`, and that ports 6080/5557 are free —
+with the exact fix printed for anything that's missing. First run downloads
+~1.5 GB and boots in 2–5 minutes.
+
+*(Hardware note: "Virtualization" must show **Enabled** in Task Manager →
+Performance → CPU. If it says Disabled, enable Intel VT-x / AMD SVM in your
+BIOS — that's the only thing no script can do for you.)*
+
+### 2. Use it
 
 - Open **http://localhost:6080** in your Windows browser → there's your
   phone, Galaxy S10 shape, click = touch, type with your keyboard.
