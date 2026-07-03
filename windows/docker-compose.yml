@@ -28,6 +28,8 @@ services:
     ports:
       - "6080:6080"                  # browser UI
       - "5557:5555"                  # ADB, remapped off busy 5555 -> 5557
+      - "127.0.0.1:5037:5037"        # emulator's own adb SERVER (for scrcpy) —
+                                     # localhost-only, used by phone-window.sh
     volumes:
       - phone-data:/home/androidusr  # apps & settings survive restarts
     shm_size: 2g                     # bigger shared memory = fewer app crashes

@@ -28,41 +28,51 @@ if ! command -v scrcpy >/dev/null || ! command -v adb >/dev/null; then
   sudo apt-get update -qq && sudo apt-get install -y -qq scrcpy adb
 fi
 
-# ---- get a stable, ONLINE adb connection -------------------------------
-# "state=offline" happens when the emulator's adb (v39) and your adb (v41)
-# disagree and the device needs a moment to re-authorize. The fix is to use
-# ONE adb (the container's own, so versions always match) and wait until the
-# device reports "device", not "offline".
-echo "==> Connecting to the phone..."
-adb kill-server >/dev/null 2>&1 || true
-adb start-server >/dev/null 2>&1 || true
+# ---- connect via the emulator's OWN adb server (inside the container) ----
+# Connecting host-adb to a forwarded emulator port fails when the host adb
+# (v41) and emulator adb (v39) versions differ (device shows offline/empty).
+# Instead we point scrcpy at the adb SERVER that already runs inside the
+# container: same version as the emulator, and the phone is already a known
+# online device there. No version mismatch, no flaky handshake.
 
-online=""
-for i in $(seq 1 30); do
-  adb disconnect localhost:5557 >/dev/null 2>&1 || true
-  adb connect localhost:5557 >/dev/null 2>&1 || true
-  state=$(adb -s localhost:5557 get-state 2>/dev/null | tr -d '\r' || true)
-  if [[ "$state" == "device" ]]; then online=1; break; fi
-  # nudge the emulator's adbd from inside the container (fixes offline state)
-  docker exec cloudphone adb devices >/dev/null 2>&1 || true
-  echo "    device is '$state' — waiting for it to come online ($i/30)..."
+if ! docker ps --format '{{.Names}}' | grep -qx cloudphone; then
+  echo "!! The phone container isn't running. Start it first:" >&2
+  echo "     cd windows && docker compose up -d" >&2
+  exit 1
+fi
+
+echo "==> Starting the phone's adb server (inside the container)..."
+# (Re)start the container's adb server listening on all interfaces so your PC
+# can reach it via the forwarded 127.0.0.1:5037. Serves localhost too, so the
+# container's own tooling keeps working.
+docker exec cloudphone adb kill-server >/dev/null 2>&1 || true
+docker exec -d cloudphone adb -a nodaemon server >/dev/null 2>&1 || true
+
+# From now on, host adb + scrcpy talk to THAT server, not a local one.
+export ADB_SERVER_SOCKET=tcp:localhost:5037
+
+echo "==> Waiting for the phone to come online..."
+serial=""
+for i in $(seq 1 40); do
+  # first online/device-state entry from the container's adb server
+  serial=$(adb devices 2>/dev/null | awk '$2=="device"{print $1; exit}')
+  if [[ -n "$serial" ]]; then break; fi
+  echo "    still booting... ($i/40)"
   sleep 3
 done
 
-if [[ -z "$online" ]]; then
+if [[ -z "$serial" ]]; then
   cat >&2 <<'EOF'
-!! The phone is still 'offline' after 90s. Usually it just hasn't finished
-   booting, or the emulator's adb got wedged. Fix it with:
+!! Couldn't reach the phone after ~2 minutes. It may still be booting, or
+   the adb-server port (5037) isn't published yet. Fix:
 
-     docker restart cloudphone      # wait ~40s for it to boot
-     bash windows/phone-window.sh   # then try again
-
-   If it keeps happening, run this once (matches adb versions):
-     docker exec cloudphone adb kill-server
+     cd windows && docker compose up -d     # applies the new 5037 mapping
+     docker restart cloudphone              # wait ~40s for it to boot
+     bash windows/phone-window.sh           # try again
 EOF
   exit 1
 fi
-echo "    Phone is online ✅"
+echo "    Phone is online as '$serial' ✅"
 
 # Borderless = no window frame, just the phone screen floating on your
 # desktop like a real device. (Run with  PLAIN=1 bash phone-window.sh
@@ -70,7 +80,7 @@ echo "    Phone is online ✅"
 extra=(--window-borderless)
 [[ -n "${PLAIN:-}" ]] && extra=()
 
-exec scrcpy -s localhost:5557 \
+exec scrcpy -s "$serial" \
   --window-title "Cloud Phone" \
   --stay-awake --no-audio --max-fps 60 \
   "${extra[@]}"
