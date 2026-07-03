@@ -264,6 +264,9 @@ size="${SIZE:-1200}"      # cap the streamed longer side (0 = native)
 fps="${FPS:-30}"          # 30 fps looks fluid and halves the encode work
 bitrate="${BITRATE:-4M}"
 
+# wake the screen so the window never opens onto a black, sleeping phone
+adb -s "$serial" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
+
 # command-line args go LAST so they override any default set above
 exec scrcpy -s "$serial" \
   --force-adb-forward --port=27184 --tunnel-port=27183 \
