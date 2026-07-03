@@ -199,8 +199,16 @@ fi
 docker exec cloudphone sh -c "pkill -f 'TCP-LISTEN:27183' 2>/dev/null" >/dev/null 2>&1 || true
 docker exec -d cloudphone socat TCP-LISTEN:27183,bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:27184
 
+# ---- performance: the emulator renders in software, don't stream more ----
+# pixels than the eye needs. Defaults favor smoothness; override per run:
+#   SIZE=0 FPS=60 BITRATE=8M bash windows/phone-window.sh   (max quality)
+size="${SIZE:-1200}"      # cap the streamed longer side (0 = native)
+fps="${FPS:-30}"          # 30 fps looks fluid and halves the encode work
+bitrate="${BITRATE:-4M}"
+
 exec scrcpy -s "$serial" \
   --force-adb-forward --port=27184 --tunnel-port=27183 \
   --window-title "Cloud Phone" \
-  --stay-awake --no-audio --max-fps 60 \
+  --stay-awake --no-audio \
+  --max-size="$size" --max-fps="$fps" --video-bit-rate="$bitrate" \
   "${extra[@]}"

@@ -19,7 +19,11 @@ services:
     devices:
       - /dev/kvm                     # hardware acceleration = smooth, no crashes
     environment:
-      - EMULATOR_DEVICE=Samsung Galaxy S10   # real phone dimensions & DPI
+      # Real phone dimensions & DPI. Pixel 8 = modern 1080x2400 panel —
+      # half the pixels of the Galaxy S10 (1440x3040), which the container
+      # must render in SOFTWARE; fewer pixels = smooth instead of hanging.
+      # (Changing this recreates the phone: run  bash windows/factory-reset.sh)
+      - EMULATOR_DEVICE=Pixel 8
       - WEB_VNC=true                         # phone screen in the browser
       - EMULATOR_DATA_PARTITION=8g           # 8 GB app storage (default is only 550 MB!)
       # Working cameras: back = 3D virtual scene, front = emulated video.
