@@ -38,5 +38,16 @@ services:
       retries: 20
       start_period: 120s
 
+  # "Hardware look": the phone screen inside a realistic device body,
+  # served at http://localhost:6081
+  phoneframe:
+    image: nginx:alpine
+    container_name: cloudphone-frame
+    restart: unless-stopped
+    volumes:
+      - ./phone-frame:/usr/share/nginx/html:ro
+    ports:
+      - "6081:80"
+
 volumes:
   phone-data:

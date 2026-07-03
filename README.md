@@ -43,11 +43,17 @@ BIOS — that's the only thing no script can do for you.)*
 
 ### 2. Use it
 
-- **In the browser**: open **http://localhost:6080** → there's your phone,
-  Galaxy S10 shape, click = touch, type with your keyboard.
-- **As a desktop window** (scrcpy): `bash windows/phone-window.sh` — the
-  phone opens as its own window via WSLg. Browser and window work
-  simultaneously.
+Three screens, one phone — use any or all at the same time:
+
+- **In the browser**: **http://localhost:6080** → the phone, Galaxy S10
+  shape, click = touch, type with your keyboard.
+- **Hardware look 📱**: **http://localhost:6081** → the live screen inside a
+  realistic device body (bezel, punch-hole camera, side buttons) on a dark
+  backdrop — press F11 and it looks like a physical phone on your monitor.
+- **As a desktop window** (scrcpy — smoothest, real H.264 video up to
+  60 fps): `bash windows/phone-window.sh` opens the bare phone screen
+  **borderless** on your desktop, like the device's own display floating
+  there. Prefer a normal window? `PLAIN=1 bash windows/phone-window.sh`.
 - **Install apps — the "Play Store" of this phone is Aurora Store** (installed
   automatically by setup): open Aurora Store on the phone → *Anonymous* login
   (or your Google account) → search and install anything from the Google Play

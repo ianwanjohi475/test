@@ -43,7 +43,7 @@ fi
 echo "    /dev/kvm found — hardware acceleration OK"
 
 echo "==> [3/4] Checking ports 6080 and 5557 are free"
-for p in 6080 5557; do
+for p in 6080 6081 5557; do
   if ss -ltn 2>/dev/null | awk '{print $4}' | grep -qE "[:.]$p\$"; then
     echo "!! Port $p is already in use." >&2
     echo "   Either stop whatever uses it, or edit windows/docker-compose.yml" >&2
@@ -94,8 +94,10 @@ cat <<'EOF'
   📱 Your cloud phone is ready!
 
   In your browser:        http://localhost:6080
-  As a desktop window:    bash windows/phone-window.sh   (scrcpy)
-  (both work at the same time)
+  Hardware look 📱:        http://localhost:6081  (phone body + screen)
+  As a desktop window:    bash windows/phone-window.sh   (scrcpy,
+                          borderless — smoothest, up to 60 fps)
+  (all work at the same time — it's one phone, many screens)
 
   Install apps: open "Aurora Store" on the phone -> Anonymous
   login -> search anything from the Play catalog.

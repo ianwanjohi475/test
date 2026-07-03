@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cloud Phone</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(120% 120% at 30% 20%, #1c2230 0%, #0b0e14 60%, #05070a 100%);
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+  }
+  .scene { position: relative; height: min(96vh, 96vw * 2.05); }
+
+  /* ---- the device body ---- */
+  .device {
+    position: relative;
+    height: 100%;
+    aspect-ratio: 1 / 2.05;
+    background: linear-gradient(160deg, #3a3f47 0%, #14161a 30%, #1b1e24 70%, #060708 100%);
+    border-radius: 9.5% / 4.7%;
+    padding: 2.6% 3.4%;
+    box-shadow:
+      0 40px 90px rgba(0,0,0,.75),
+      0 8px 25px rgba(0,0,0,.6),
+      inset 0 0 2px 2px rgba(255,255,255,.06),
+      inset 0 0 10px rgba(0,0,0,.9);
+  }
+  /* glossy edge highlight */
+  .device::before {
+    content: ""; position: absolute; inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(105deg, rgba(255,255,255,.14) 0%, transparent 12%,
+                transparent 88%, rgba(255,255,255,.10) 100%);
+    pointer-events: none;
+  }
+
+  /* side buttons */
+  .btn { position: absolute; right: -0.9%; width: 1.2%; background:
+         linear-gradient(90deg,#2c2f35,#0c0d10); border-radius: 3px;
+         box-shadow: inset 0 1px 1px rgba(255,255,255,.15); }
+  .btn.power  { top: 24%; height: 7%; }
+  .btn.volume { top: 12%; height: 10%; left: -0.9%; right: auto; }
+
+  /* ---- the screen ---- */
+  .screen {
+    position: relative; width: 100%; height: 100%;
+    background: #000; border-radius: 7% / 3.5%;
+    overflow: hidden;
+    box-shadow: inset 0 0 0 2px #000, inset 0 0 14px rgba(0,0,0,.9);
+  }
+  .screen iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; border: 0; background: #000;
+  }
+
+  /* punch-hole front camera */
+  .cam {
+    position: absolute; top: 1.6%; left: 50%; transform: translateX(-50%);
+    width: 3.4%; aspect-ratio: 1; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #17324d 0%, #05080c 55%, #000 100%);
+    box-shadow: 0 0 0 2px rgba(0,0,0,.9), inset 0 0 3px #000;
+    z-index: 2; pointer-events: none;
+  }
+
+  .hint {
+    position: fixed; bottom: 14px; left: 0; right: 0;
+    text-align: center; color: #4b5566; font-size: 12px; letter-spacing: .04em;
+  }
+  .hint b { color: #7c8899; font-weight: 600; }
+</style>
+</head>
+<body>
+  <div class="scene">
+    <div class="device">
+      <div class="btn volume"></div>
+      <div class="btn power"></div>
+      <div class="screen">
+        <div class="cam"></div>
+        <iframe id="phone" allow="clipboard-read; clipboard-write"
+                src="http://localhost:6080/vnc.html?autoconnect=true&resize=scale&reconnect=true&show_dot=false"></iframe>
+      </div>
+    </div>
+  </div>
+  <div class="hint">☁️📱 <b>Cloud Phone</b> — click the screen to use it · F11 for fullscreen</div>
+</body>
+</html>

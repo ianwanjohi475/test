@@ -29,4 +29,14 @@ if ! command -v scrcpy >/dev/null || ! command -v adb >/dev/null; then
 fi
 
 adb connect localhost:5557 >/dev/null
-exec scrcpy -s localhost:5557 --window-title "Cloud Phone" --stay-awake --no-audio
+
+# Borderless = no window frame, just the phone screen floating on your
+# desktop like a real device. (Run with  PLAIN=1 bash phone-window.sh
+# if you prefer a normal window with title bar.)
+extra=(--window-borderless)
+[[ -n "${PLAIN:-}" ]] && extra=()
+
+exec scrcpy -s localhost:5557 \
+  --window-title "Cloud Phone" \
+  --stay-awake --no-audio --max-fps 60 \
+  "${extra[@]}"
