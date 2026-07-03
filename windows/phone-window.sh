@@ -183,14 +183,24 @@ extra=(--window-borderless)
 # ---- tunnel mode: required because the adb server is REMOTE (in Docker) ----
 # By default scrcpy uses "adb reverse": the phone connects BACK to the machine
 # running the adb server — i.e. INTO the container, where no scrcpy client is
-# listening. The connection dies, scrcpy kills its server on the phone (the
-# "Killed" + NullPointerException in the cleanup thread you may have seen),
-# and reports "Server connection failed".
-# Fix (scrcpy's documented remote-adb setup, doc/tunnels.md): force "adb
-# forward" pinned to port 27183, which the container publishes on
-# localhost:27183 — the video/control/input stream flows through it.
+# listening. So we force "adb forward" instead. But adb binds forward sockets
+# to the container's LOOPBACK only, where Docker's published port can't reach
+# them ("Server connection failed"). Same problem the image itself has with
+# the emulator's ports — and we use its own solution: a socat relay that
+# bridges container-external traffic to the loopback socket.
+#
+#   scrcpy client -> localhost:27183 (published) -> socat (container 0.0.0.0)
+#     -> 127.0.0.1:27184 (adb forward) -> adbd -> scrcpy server on the phone
+echo "==> Starting the tunnel relay inside the container..."
+if ! docker exec cloudphone sh -c 'command -v socat' >/dev/null 2>&1; then
+  echo "!! socat not found in the container (image changed?) — can't relay." >&2
+  exit 1
+fi
+docker exec cloudphone sh -c "pkill -f 'TCP-LISTEN:27183' 2>/dev/null" >/dev/null 2>&1 || true
+docker exec -d cloudphone socat TCP-LISTEN:27183,bind=0.0.0.0,fork,reuseaddr TCP:127.0.0.1:27184
+
 exec scrcpy -s "$serial" \
-  --force-adb-forward --port=27183 \
+  --force-adb-forward --port=27184 --tunnel-port=27183 \
   --window-title "Cloud Phone" \
   --stay-awake --no-audio --max-fps 60 \
   "${extra[@]}"
