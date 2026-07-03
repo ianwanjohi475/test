@@ -1,0 +1,41 @@
+# Cloud Phone stack
+#
+#   cloudphone : real Android 13 (Redroid) with Play Store + ARM translation
+#   webclient  : ws-scrcpy — control the phone from your browser
+#
+# Start with:  docker compose up -d
+# Open:        http://YOUR_SERVER_IP:8000
+# Then add device:  IP = cloudphone, port = 5555
+
+services:
+  cloudphone:
+    image: cloudphone:13.0.0-gapps
+    container_name: cloudphone
+    privileged: true
+    restart: unless-stopped
+    volumes:
+      - ./data:/data                # persistent storage: apps survive restarts
+    command:
+      - androidboot.redroid_width=720
+      - androidboot.redroid_height=1520
+      - androidboot.redroid_dpi=320
+      - androidboot.redroid_fps=30
+      - androidboot.use_memfd=true
+      # GPU: software rendering works everywhere. If your server has a GPU,
+      # see README "GPU acceleration" for the faster option.
+      - androidboot.redroid_gpu_mode=guest
+    deploy:
+      resources:
+        limits:
+          memory: 6g              # give Android headroom so apps don't get killed
+    ports:
+      - "5555:5555"               # adb (optional; remove if you only use the browser)
+
+  webclient:
+    image: ghcr.io/netrisdotme/ws-scrcpy:latest
+    container_name: cloudphone-web
+    restart: unless-stopped
+    depends_on:
+      - cloudphone
+    ports:
+      - "8000:8000"               # browser UI
