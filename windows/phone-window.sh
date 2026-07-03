@@ -48,8 +48,9 @@ echo "==> Starting the phone's adb server (inside the container)..."
 docker exec cloudphone adb kill-server >/dev/null 2>&1 || true
 docker exec -d cloudphone adb -a nodaemon server >/dev/null 2>&1 || true
 
-# From now on, host adb + scrcpy talk to THAT server, not a local one.
-export ADB_SERVER_SOCKET=tcp:localhost:5037
+# From now on, host adb + scrcpy talk to THAT server (published on host
+# port 5038, so it doesn't collide with your PC's own adb on 5037).
+export ADB_SERVER_SOCKET=tcp:localhost:5038
 
 echo "==> Waiting for the phone to come online..."
 serial=""
@@ -66,7 +67,7 @@ if [[ -z "$serial" ]]; then
 !! Couldn't reach the phone after ~2 minutes. It may still be booting, or
    the adb-server port (5037) isn't published yet. Fix:
 
-     cd windows && docker compose up -d     # applies the new 5037 mapping
+     cd windows && docker compose up -d     # applies the adb-server mapping
      docker restart cloudphone              # wait ~40s for it to boot
      bash windows/phone-window.sh           # try again
 EOF
