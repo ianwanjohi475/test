@@ -45,15 +45,22 @@ BIOS — that's the only thing no script can do for you.)*
 
 Three screens, one phone — use any or all at the same time:
 
-- **In the browser**: **http://localhost:6080** → the phone, Galaxy S10
+- **In the browser**: **http://localhost:6080** → the phone, real Pixel 8
   shape, click = touch, type with your keyboard.
 - **Hardware look 📱**: **http://localhost:6081** → the live screen inside a
   realistic device body (bezel, punch-hole camera, side buttons) on a dark
   backdrop — press F11 and it looks like a physical phone on your monitor.
-- **As a desktop window** (scrcpy — smoothest, real H.264 video up to
-  60 fps): `bash windows/phone-window.sh` opens the bare phone screen
-  **borderless** on your desktop, like the device's own display floating
-  there. Prefer a normal window? `PLAIN=1 bash windows/phone-window.sh`.
+- **As a desktop window** (scrcpy — smoothest, real H.264 video):
+  `bash windows/phone-window.sh` opens the phone as a normal window —
+  move it, resize it, minimize it like any app. Customize per run
+  (combine freely):
+  - `BORDERLESS=1` bare screen, no frame (looks real; not draggable)
+  - `TOP=1` always on top · `FULLSCREEN=1` start fullscreen
+  - `X=… Y=… W=… H=…` initial position/size
+  - `SIZE=0 FPS=60 BITRATE=8M` max stream quality (default favors
+    smoothness: 1200px / 30 fps / 4 Mbps)
+  - shortcuts while it runs (left Alt): `Alt+F` fullscreen, `Alt+H` home,
+    `Alt+B` back, `Alt+P` power, `Alt+↑/↓` volume, `Alt+N` notifications
 - **Install apps — the "Play Store" of this phone is Aurora Store** (installed
   automatically by setup): open Aurora Store on the phone → *Anonymous* login
   (or your Google account) → search and install anything from the Google Play

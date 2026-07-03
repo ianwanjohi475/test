@@ -174,11 +174,33 @@ fi
 sleep 5
 echo "    Android is fully booted ✅"
 
-# Borderless = no window frame, just the phone screen floating on your
-# desktop like a real device. (Run with  PLAIN=1 bash phone-window.sh
-# if you prefer a normal window with title bar.)
-extra=(--window-borderless)
-[[ -n "${PLAIN:-}" ]] && extra=()
+# ---- window style --------------------------------------------------------
+# Default: a NORMAL window — title bar, so you can move it, resize it,
+# minimize it like any app. Options (combine freely):
+#   BORDERLESS=1   bare phone screen, no frame (looks real, but can't be
+#                  dragged — it has no title bar to grab)
+#   TOP=1          keep the phone above all other windows
+#   FULLSCREEN=1   start fullscreen (Alt+F toggles any time)
+#   X=100 Y=50     initial position;  W=400 H=850  initial size
+# Example:  TOP=1 W=380 bash windows/phone-window.sh
+extra=()
+[[ -n "${BORDERLESS:-}${PLAIN_BORDERLESS:-}" ]] && extra+=(--window-borderless)
+[[ -n "${TOP:-}"        ]] && extra+=(--always-on-top)
+[[ -n "${FULLSCREEN:-}" ]] && extra+=(--fullscreen)
+[[ -n "${X:-}" ]] && extra+=(--window-x="$X")
+[[ -n "${Y:-}" ]] && extra+=(--window-y="$Y")
+[[ -n "${W:-}" ]] && extra+=(--window-width="$W")
+[[ -n "${H:-}" ]] && extra+=(--window-height="$H")
+
+cat <<'EOF'
+    ── Phone window tips ─────────────────────────────────────────
+    Move/resize: drag the title bar / edges, like any window.
+    Shortcuts (hold left Alt):
+      Alt+F fullscreen   Alt+W fit window    Alt+G 1:1 size
+      Alt+H home         Alt+B back          Alt+S app switch
+      Alt+P power        Alt+↑/↓ volume      Alt+N notifications
+    ──────────────────────────────────────────────────────────────
+EOF
 
 # ---- tunnel mode: required because the adb server is REMOTE (in Docker) ----
 # By default scrcpy uses "adb reverse": the phone connects BACK to the machine
