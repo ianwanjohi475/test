@@ -28,7 +28,41 @@ if ! command -v scrcpy >/dev/null || ! command -v adb >/dev/null; then
   sudo apt-get update -qq && sudo apt-get install -y -qq scrcpy adb
 fi
 
-adb connect localhost:5557 >/dev/null
+# ---- get a stable, ONLINE adb connection -------------------------------
+# "state=offline" happens when the emulator's adb (v39) and your adb (v41)
+# disagree and the device needs a moment to re-authorize. The fix is to use
+# ONE adb (the container's own, so versions always match) and wait until the
+# device reports "device", not "offline".
+echo "==> Connecting to the phone..."
+adb kill-server >/dev/null 2>&1 || true
+adb start-server >/dev/null 2>&1 || true
+
+online=""
+for i in $(seq 1 30); do
+  adb disconnect localhost:5557 >/dev/null 2>&1 || true
+  adb connect localhost:5557 >/dev/null 2>&1 || true
+  state=$(adb -s localhost:5557 get-state 2>/dev/null | tr -d '\r' || true)
+  if [[ "$state" == "device" ]]; then online=1; break; fi
+  # nudge the emulator's adbd from inside the container (fixes offline state)
+  docker exec cloudphone adb devices >/dev/null 2>&1 || true
+  echo "    device is '$state' — waiting for it to come online ($i/30)..."
+  sleep 3
+done
+
+if [[ -z "$online" ]]; then
+  cat >&2 <<'EOF'
+!! The phone is still 'offline' after 90s. Usually it just hasn't finished
+   booting, or the emulator's adb got wedged. Fix it with:
+
+     docker restart cloudphone      # wait ~40s for it to boot
+     bash windows/phone-window.sh   # then try again
+
+   If it keeps happening, run this once (matches adb versions):
+     docker exec cloudphone adb kill-server
+EOF
+  exit 1
+fi
+echo "    Phone is online ✅"
 
 # Borderless = no window frame, just the phone screen floating on your
 # desktop like a real device. (Run with  PLAIN=1 bash phone-window.sh
