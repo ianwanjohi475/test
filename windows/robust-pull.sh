@@ -13,7 +13,7 @@
 set -uo pipefail
 
 IMAGE="${IMAGE:-budtmo/docker-android}"
-TAG="${TAG:-emulator_14.0}"
+TAG="${TAG:-emulator_11.0}"
 WORK="${WORK:-$HOME/.cloudphone-image}"
 REG="https://registry-1.docker.io/v2/${IMAGE}"
 

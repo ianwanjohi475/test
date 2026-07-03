@@ -65,7 +65,7 @@ done
 echo "    Ports are free"
 
 echo "==> [4/4] Downloading the phone image (~3 GB)"
-if docker image inspect budtmo/docker-android:emulator_14.0 >/dev/null 2>&1; then
+if docker image inspect budtmo/docker-android:emulator_11.0 >/dev/null 2>&1; then
   echo "    Image already downloaded — skipping."
 elif ! docker compose pull; then
   cat <<'EOF'

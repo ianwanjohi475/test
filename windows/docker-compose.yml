@@ -1,7 +1,8 @@
 # ☁️📱 Cloud Phone — Windows (Docker Desktop / WSL2) edition
 #
-# A real-phone-shaped Android 14 device (Samsung Galaxy S10 profile:
-# real dimensions, real DPI) that you use IN YOUR BROWSER.
+# A real-phone-shaped ANDROID 11 device. Android 11 is the lightest,
+# fastest image of this family — 14 was hanging ("Process system isn't
+# responding") under software rendering; 11 flies and runs current apps.
 #
 #   Start:   docker compose up -d      (run inside this "windows" folder)
 #   Open:    http://localhost:6080     <- the phone appears in your browser
@@ -12,7 +13,7 @@
 
 services:
   cloudphone:
-    image: budtmo/docker-android:emulator_14.0
+    image: budtmo/docker-android:emulator_11.0
     container_name: cloudphone
     privileged: true
     restart: unless-stopped
@@ -20,13 +21,12 @@ services:
       - /dev/kvm                     # hardware acceleration = smooth, no crashes
     environment:
       # Real phone profile (hardware traits), with an explicit LIGHTWEIGHT
-      # portrait panel. The image has no Pixel skin, so without SCREEN_* it
-      # falls back to a landscape 1600x900 monitor shape — hence the values
-      # below. 720x1600 @ 280dpi = modern 20:9 phone with ~1/4 the pixels of
-      # a Galaxy S10: the container renders in SOFTWARE, fewer pixels = fast.
-      # Sharper (heavier): 1080 / 2400 / 420. Changing any of these recreates
-      # the phone: run  bash windows/factory-reset.sh
-      - EMULATOR_DEVICE=Pixel 8
+      # portrait panel: 720x1600 = modern 20:9 phone shape with few pixels —
+      # the container renders in SOFTWARE, fewer pixels = fast. "Nexus 5" is
+      # the profile every docker-android version supports; the panel is set
+      # explicitly below so the profile's own size doesn't matter.
+      # Changing any of these recreates the phone: bash windows/factory-reset.sh
+      - EMULATOR_DEVICE=Nexus 5
       - EMULATOR_NO_SKIN=true
       - SCREEN_WIDTH=720
       - SCREEN_HEIGHT=1600
@@ -35,9 +35,10 @@ services:
       - EMULATOR_DATA_PARTITION=8g           # 8 GB app storage (default is only 550 MB!)
       # Working cameras: back = 3D virtual scene, front = emulated video.
       # Camera apps (WhatsApp video, camera app, QR scanners) work, no crash.
-      # lcd_density 280 matches the 720-wide panel (Pixel 8 profile is 420
-      # for 1080 wide; 420 * 720/1080 = 280) so the UI is the right size.
-      - EMULATOR_ADDITIONAL_ARGS=-camera-back virtualscene -camera-front emulated -prop qemu.sf.lcd_density=280
+      # lcd_density 320 sizes the UI right for a 720-wide panel.
+      # -memory/-cores: give the phone 2.5 GB RAM and 4 CPU cores so the
+      # system doesn't ANR (lower -cores to 2 on a 4-core PC).
+      - EMULATOR_ADDITIONAL_ARGS=-camera-back virtualscene -camera-front emulated -prop qemu.sf.lcd_density=320 -memory 2560 -cores 4
     ports:
       - "6080:6080"                  # browser UI
       - "5557:5555"                  # ADB, remapped off busy 5555 -> 5557
