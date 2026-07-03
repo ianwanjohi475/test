@@ -43,12 +43,27 @@ BIOS — that's the only thing no script can do for you.)*
 
 ### 2. Use it
 
-- Open **http://localhost:6080** in your Windows browser → there's your
-  phone, Galaxy S10 shape, click = touch, type with your keyboard.
-- Install app stores: `bash ../scripts/install-appstore.sh` — this puts
-  **Aurora Store** (the whole Google Play catalog, anonymous login works,
-  no Google account needed) and **F-Droid** on the phone.
-- Sideload any APK: `bash ../scripts/install-apk.sh app.apk`
+- **In the browser**: open **http://localhost:6080** → there's your phone,
+  Galaxy S10 shape, click = touch, type with your keyboard.
+- **As a desktop window** (scrcpy): `bash windows/phone-window.sh` — the
+  phone opens as its own window via WSLg. Browser and window work
+  simultaneously.
+- **Install apps — the "Play Store" of this phone is Aurora Store** (installed
+  automatically by setup): open Aurora Store on the phone → *Anonymous* login
+  (or your Google account) → search and install anything from the Google Play
+  catalog: Chrome, WhatsApp, YouTube updates, games. F-Droid is included too.
+  *Why not the actual Play Store app? This emulator image ships Google APIs
+  but not the Play Store package; Aurora Store talks to the same Play servers
+  and serves the identical catalog — that's the reliable way here. The VPS
+  stack (Option B) has the real Play Store app.*
+- **Sideload any APK**: `bash scripts/install-apk.sh app.apk`
+- **Storage**: 8 GB app partition (configured in `windows/docker-compose.yml`,
+  `EMULATOR_DATA_PARTITION` — the docker-android default is a uselessly small
+  550 MB). Raise it if you install lots of big games.
+- **Camera**: works — back camera shows an explorable 3D virtual scene, front
+  camera an emulated video feed, so camera apps, QR scanners, and video calls
+  function instead of crashing. (A *real* webcam passthrough is not possible
+  on the stock WSL2 kernel; that limitation is Windows', not this project's.)
 - Apps/data persist across restarts (`docker compose restart` / reboot).
 
 ---

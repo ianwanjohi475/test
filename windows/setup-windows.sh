@@ -81,18 +81,27 @@ for i in $(seq 1 60); do
   sleep 10
 done
 
+echo "==> Installing app stores (Aurora Store = full Play catalog) if missing"
+if docker exec cloudphone adb shell pm list packages 2>/dev/null | grep -q com.aurora.store; then
+  echo "    Already installed."
+elif ! bash ../scripts/install-appstore.sh; then
+  echo "    (Couldn't install right now — run later:  bash scripts/install-appstore.sh)"
+fi
+
 cat <<'EOF'
 
 ==========================================================
   📱 Your cloud phone is ready!
 
-  Open in your Windows browser:   http://localhost:6080
+  In your browser:        http://localhost:6080
+  As a desktop window:    bash windows/phone-window.sh   (scrcpy)
+  (both work at the same time)
 
-  Install an app store (Play catalog via Aurora Store):
-      bash ../scripts/install-appstore.sh
+  Install apps: open "Aurora Store" on the phone -> Anonymous
+  login -> search anything from the Play catalog.
+  Sideload any APK:  bash scripts/install-apk.sh some-app.apk
 
-  Sideload any APK:
-      bash ../scripts/install-apk.sh some-app.apk
+  Camera works (virtual scene / test video) in camera apps.
 
   Phone survives restarts:  docker compose restart cloudphone
   Power off (keeps data):   docker compose down

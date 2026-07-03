@@ -21,6 +21,10 @@ services:
     environment:
       - EMULATOR_DEVICE=Samsung Galaxy S10   # real phone dimensions & DPI
       - WEB_VNC=true                         # phone screen in the browser
+      - EMULATOR_DATA_PARTITION=8g           # 8 GB app storage (default is only 550 MB!)
+      # Working cameras: back = 3D virtual scene, front = emulated video.
+      # Camera apps (WhatsApp video, camera app, QR scanners) work, no crash.
+      - EMULATOR_ADDITIONAL_ARGS=-camera-back virtualscene -camera-front emulated
     ports:
       - "6080:6080"                  # browser UI
       - "5557:5555"                  # ADB, remapped off busy 5555 -> 5557
