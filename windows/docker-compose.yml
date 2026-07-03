@@ -19,16 +19,25 @@ services:
     devices:
       - /dev/kvm                     # hardware acceleration = smooth, no crashes
     environment:
-      # Real phone dimensions & DPI. Pixel 8 = modern 1080x2400 panel —
-      # half the pixels of the Galaxy S10 (1440x3040), which the container
-      # must render in SOFTWARE; fewer pixels = smooth instead of hanging.
-      # (Changing this recreates the phone: run  bash windows/factory-reset.sh)
+      # Real phone profile (hardware traits), with an explicit LIGHTWEIGHT
+      # portrait panel. The image has no Pixel skin, so without SCREEN_* it
+      # falls back to a landscape 1600x900 monitor shape — hence the values
+      # below. 720x1600 @ 280dpi = modern 20:9 phone with ~1/4 the pixels of
+      # a Galaxy S10: the container renders in SOFTWARE, fewer pixels = fast.
+      # Sharper (heavier): 1080 / 2400 / 420. Changing any of these recreates
+      # the phone: run  bash windows/factory-reset.sh
       - EMULATOR_DEVICE=Pixel 8
+      - EMULATOR_NO_SKIN=true
+      - SCREEN_WIDTH=720
+      - SCREEN_HEIGHT=1600
+      - SCREEN_DEPTH=24
       - WEB_VNC=true                         # phone screen in the browser
       - EMULATOR_DATA_PARTITION=8g           # 8 GB app storage (default is only 550 MB!)
       # Working cameras: back = 3D virtual scene, front = emulated video.
       # Camera apps (WhatsApp video, camera app, QR scanners) work, no crash.
-      - EMULATOR_ADDITIONAL_ARGS=-camera-back virtualscene -camera-front emulated
+      # lcd_density 280 matches the 720-wide panel (Pixel 8 profile is 420
+      # for 1080 wide; 420 * 720/1080 = 280) so the UI is the right size.
+      - EMULATOR_ADDITIONAL_ARGS=-camera-back virtualscene -camera-front emulated -prop qemu.sf.lcd_density=280
     ports:
       - "6080:6080"                  # browser UI
       - "5557:5555"                  # ADB, remapped off busy 5555 -> 5557

@@ -210,6 +210,16 @@ fi
 sleep 5
 echo "    Android is fully booted ✅"
 
+# Quality-of-life, reapplied each run (instant, idempotent):
+# - classic 3-button navigation (back/home/recents) — much easier with a
+#   mouse than Android's swipe gestures
+# - animations off — the single biggest "feels faster" switch on a
+#   software-rendered phone
+adb -s "$serial" shell cmd overlay enable-exclusive --category com.android.internal.systemui.navbar.threebutton >/dev/null 2>&1 || true
+adb -s "$serial" shell settings put global window_animation_scale 0 >/dev/null 2>&1 || true
+adb -s "$serial" shell settings put global transition_animation_scale 0 >/dev/null 2>&1 || true
+adb -s "$serial" shell settings put global animator_duration_scale 0 >/dev/null 2>&1 || true
+
 # ---- window style --------------------------------------------------------
 # Default: a NORMAL window — title bar, so you can move it, resize it,
 # minimize it like any app. Options (combine freely):
