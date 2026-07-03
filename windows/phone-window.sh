@@ -41,6 +41,26 @@ if ! docker ps --format '{{.Names}}' | grep -qx cloudphone; then
   exit 1
 fi
 
+# The emulator can only run if the container can OPEN /dev/kvm. On WSL the
+# permissions on /dev/kvm often reset to root-only (e.g. after wsl --shutdown),
+# and then Android silently never boots: adb shows no device and the browser
+# at :6080 shows only the wallpaper. Detect and fix that here.
+kvm_mode=$(stat -c %a /dev/kvm 2>/dev/null || echo missing)
+if [[ "$kvm_mode" == "missing" ]]; then
+  echo "!! /dev/kvm is missing — virtualization is off. Run:" >&2
+  echo "     bash windows/quickstart.sh" >&2
+  exit 1
+fi
+case "$kvm_mode" in
+  *6|*7) ;;  # world read+write — the emulator can open it
+  *)
+    echo "==> /dev/kvm is mode $kvm_mode — the phone can't open it. Fixing (sudo)..."
+    sudo chmod 666 /dev/kvm
+    echo "==> Restarting the phone so it boots with working acceleration..."
+    docker restart cloudphone >/dev/null
+    ;;
+esac
+
 # scrcpy needs its tunnel port (27183) published from the container (see
 # docker-compose.yml). If the running container predates that mapping, the
 # stream can never reach your desktop — recreate the container first.

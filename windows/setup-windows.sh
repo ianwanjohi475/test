@@ -40,7 +40,18 @@ if [[ ! -e /dev/kvm ]]; then
 EOF
   exit 1
 fi
-echo "    /dev/kvm found — hardware acceleration OK"
+# Existing isn't enough — the emulator (a non-root user inside the container)
+# must be able to OPEN it. WSL often resets /dev/kvm to root-only after
+# 'wsl --shutdown', and then Android silently never boots.
+kvm_mode=$(stat -c %a /dev/kvm 2>/dev/null || echo 000)
+case "$kvm_mode" in
+  *6|*7) ;;
+  *)
+    echo "    /dev/kvm is mode $kvm_mode — the phone couldn't open it. Fixing (sudo)..."
+    sudo chmod 666 /dev/kvm
+    ;;
+esac
+echo "    /dev/kvm found & accessible — hardware acceleration OK"
 
 echo "==> [3/4] Checking ports 6080 and 5557 are free"
 for p in 6080 6081 5557; do
