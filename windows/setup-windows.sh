@@ -53,21 +53,20 @@ for p in 6080 5557; do
 done
 echo "    Ports are free"
 
-echo "==> [4/4] Downloading the phone image (~3 GB — resumes if your internet hiccups)"
-pulled=0
-for attempt in 1 2 3 4 5 6 7 8; do
-  if docker compose pull; then
-    pulled=1; break
-  fi
-  wait_s=$((attempt * 15))
-  echo "    Network hiccup — already-downloaded parts are kept. Retrying in ${wait_s}s (attempt $attempt/8)..."
-  sleep "$wait_s"
-done
-if [[ $pulled -ne 1 ]]; then
-  echo "!! The download kept failing. Check your internet connection and re-run:" >&2
-  echo "     bash windows/quickstart.sh" >&2
-  echo "   (progress is saved — it continues where it stopped)" >&2
-  exit 1
+echo "==> [4/4] Downloading the phone image (~3 GB)"
+if docker image inspect budtmo/docker-android:emulator_14.0 >/dev/null 2>&1; then
+  echo "    Image already downloaded — skipping."
+elif ! docker compose pull; then
+  cat <<'EOF'
+    ------------------------------------------------------------------
+    Your connection dropped mid-download. Plain `docker pull` restarts
+    unfinished pieces from ZERO, so on an unstable line the big 1.9 GB
+    piece can loop forever. Switching to the RESUMABLE downloader:
+    it continues each piece from the exact byte where it stopped, so
+    drops only cost seconds. Progress survives reboots too.
+    ------------------------------------------------------------------
+EOF
+  bash robust-pull.sh
 fi
 
 echo "==> Starting the phone"
