@@ -16,8 +16,10 @@ services:
     volumes:
       - ./data:/data                # persistent storage: apps survive restarts
     command:
+      # Real phone screen: 20:9 aspect, 720p-class panel (like a Galaxy A-series).
+      # For flagship-like sharpness use 1080/2400/440 — needs a beefier server.
       - androidboot.redroid_width=720
-      - androidboot.redroid_height=1520
+      - androidboot.redroid_height=1600
       - androidboot.redroid_dpi=320
       - androidboot.redroid_fps=30
       - androidboot.use_memfd=true
@@ -29,7 +31,7 @@ services:
         limits:
           memory: 6g              # give Android headroom so apps don't get killed
     ports:
-      - "5555:5555"               # adb (optional; remove if you only use the browser)
+      - "5557:5555"               # adb, remapped (5555/5556 may be busy on your machine)
 
   webclient:
     image: ghcr.io/netrisdotme/ws-scrcpy:latest

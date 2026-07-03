@@ -71,8 +71,8 @@ docker compose up -d
 echo "==> [5/5] Waiting for Android to boot (first boot takes 1–3 minutes)..."
 sleep 20
 for i in $(seq 1 30); do
-  if adb connect localhost:5555 >/dev/null 2>&1 && \
-     [[ "$(adb -s localhost:5555 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
+  if adb connect localhost:5557 >/dev/null 2>&1 && \
+     [[ "$(adb -s localhost:5557 shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" == "1" ]]; then
     echo "    Android is up!"
     break
   fi
@@ -86,8 +86,8 @@ cat <<EOF
   Your cloud phone is ready.
 
   Browser control :  http://$IP:8000
-     -> in ws-scrcpy, add device:  host "cloudphone" (or $IP), port 5555
-  ADB             :  adb connect $IP:5555
+     -> in ws-scrcpy, add device:  host "cloudphone" port 5555 (or $IP port 5557)
+  ADB             :  adb connect $IP:5557
 
   First steps on the phone:
     1. Open Play Store and sign in with a Google account.

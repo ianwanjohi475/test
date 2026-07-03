@@ -4,9 +4,9 @@
 # Google requires unofficial devices to be registered once. This prints your
 # phone's GSF (Google Services Framework) ID and tells you where to paste it.
 set -euo pipefail
-adb connect localhost:5555 >/dev/null
+adb connect localhost:5557 >/dev/null
 
-GSF_HEX=$(adb -s localhost:5555 shell 'sqlite3 /data/data/com.google.android.gsf/databases/gservices.db \
+GSF_HEX=$(adb -s localhost:5557 shell 'sqlite3 /data/data/com.google.android.gsf/databases/gservices.db \
   "select value from main where name = \"android_id\";"' 2>/dev/null | tr -d '\r')
 
 if [[ -z "$GSF_HEX" ]]; then

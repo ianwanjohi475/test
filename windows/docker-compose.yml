@@ -1,0 +1,38 @@
+# ☁️📱 Cloud Phone — Windows (Docker Desktop / WSL2) edition
+#
+# A real-phone-shaped Android 14 device (Samsung Galaxy S10 profile:
+# real dimensions, real DPI) that you use IN YOUR BROWSER.
+#
+#   Start:   docker compose up -d      (run inside this "windows" folder)
+#   Open:    http://localhost:6080     <- the phone appears in your browser
+#
+# Ports 5555/5556 are avoided on purpose (you said they're taken):
+#   6080 -> browser screen (noVNC)
+#   5557 -> ADB from your PC (optional)
+
+services:
+  cloudphone:
+    image: budtmo/docker-android:emulator_14.0
+    container_name: cloudphone
+    privileged: true
+    restart: unless-stopped
+    devices:
+      - /dev/kvm                     # hardware acceleration = smooth, no crashes
+    environment:
+      - EMULATOR_DEVICE=Samsung Galaxy S10   # real phone dimensions & DPI
+      - WEB_VNC=true                         # phone screen in the browser
+    ports:
+      - "6080:6080"                  # browser UI
+      - "5557:5555"                  # ADB, remapped off busy 5555 -> 5557
+    volumes:
+      - phone-data:/home/androidusr  # apps & settings survive restarts
+    shm_size: 2g                     # bigger shared memory = fewer app crashes
+    healthcheck:
+      test: ["CMD-SHELL", "adb shell getprop sys.boot_completed | grep -q 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 120s
+
+volumes:
+  phone-data:
