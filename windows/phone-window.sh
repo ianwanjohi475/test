@@ -8,6 +8,42 @@
 #
 set -euo pipefail
 
+# ---- command line: friendly flags + FULL scrcpy pass-through --------------
+# Anything this script doesn't recognize goes straight to scrcpy, so every
+# scrcpy option works here too (see: scrcpy --help).
+usage() {
+  cat <<'EOF'
+Usage: bash windows/phone-window.sh [options]
+
+Friendly options:
+  --borderless    bare phone screen, no frame (looks real; not draggable)
+  --top           keep the phone above all other windows
+  --fullscreen    start fullscreen (Alt+F toggles any time)
+  -h, --help      show this help
+
+EVERYTHING else is passed straight to scrcpy — all its options work:
+  bash windows/phone-window.sh --show-touches --always-on-top
+  bash windows/phone-window.sh --record=my-session.mp4
+  bash windows/phone-window.sh --max-size=0 --max-fps=60 --video-bit-rate=8M
+  bash windows/phone-window.sh --window-x=1400 --window-y=40 --window-height=900
+Full list:  scrcpy --help
+
+Env shortcuts still work too:  TOP=1 W=380 SIZE=0 FPS=60 BITRATE=8M
+EOF
+}
+
+user_args=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --borderless) user_args+=(--window-borderless) ;;
+    --top)        user_args+=(--always-on-top) ;;
+    --fullscreen) user_args+=(--fullscreen) ;;
+    -h|--help)    usage; exit 0 ;;
+    *)            user_args+=("$1") ;;   # raw scrcpy option
+  esac
+  shift
+done
+
 if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
   cat >&2 <<'EOF'
 !! No graphical display available in WSL (WSLg missing).
@@ -228,9 +264,11 @@ size="${SIZE:-1200}"      # cap the streamed longer side (0 = native)
 fps="${FPS:-30}"          # 30 fps looks fluid and halves the encode work
 bitrate="${BITRATE:-4M}"
 
+# command-line args go LAST so they override any default set above
 exec scrcpy -s "$serial" \
   --force-adb-forward --port=27184 --tunnel-port=27183 \
   --window-title "Cloud Phone" \
   --stay-awake --no-audio \
   --max-size="$size" --max-fps="$fps" --video-bit-rate="$bitrate" \
-  "${extra[@]}"
+  "${extra[@]}" \
+  "${user_args[@]+"${user_args[@]}"}"
