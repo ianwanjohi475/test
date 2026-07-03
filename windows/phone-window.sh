@@ -192,17 +192,20 @@ echo "    Phone is online as '$serial' ✅"
 # with a cleanup-thread NullPointerException because system services
 # aren't registered yet. Wait for the real end of boot.
 echo "==> Waiting for Android to finish booting (adb is up, system isn't yet)..."
+echo "    (a FIRST boot after a reset can take up to ~10 min — that's normal)"
 booted=""
-for i in $(seq 1 80); do
+for i in $(seq 1 200); do
   if adb -s "$serial" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' | grep -q 1; then
     booted=1; break
   fi
-  echo "    Android starting... ($i/80)"
+  echo "    Android starting... ($i/200)"
   sleep 3
 done
 if [[ -z "$booted" ]]; then
-  echo "!! Android didn't finish booting after ~4 minutes. Run:" >&2
-  echo "     bash windows/diagnose.sh" >&2
+  echo "!! Android still hadn't finished booting after ~10 minutes." >&2
+  echo "   The phone may keep booting in the background — check" >&2
+  echo "   http://localhost:6080 and re-run this script if it comes up." >&2
+  echo "   If it's clearly stuck, run:  bash windows/diagnose.sh" >&2
   echo "   and send the output." >&2
   exit 1
 fi
