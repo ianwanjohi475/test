@@ -129,6 +129,28 @@ EOF
   exit 1
 fi
 
+# --- image repair (emulator_11.0), idempotent ------------------------------
+# 1) The image's internal 'sudo' is broken ("sudo: unknown user root"), and
+#    the emulator launcher dies on 'sudo chown ... /dev/kvm' — and it only
+#    tries ONCE. Neuter that chown (we already guarantee /dev/kvm is 666)
+#    and make sure the perms are right.
+# 2) A stale X lock file after 'docker restart' can wedge the screen/VNC
+#    services ("display already active") — clean it.
+docker exec -u root cloudphone sh -c '
+  sed -i "s/sudo chown/true chown/g; s/sudo chmod/true chmod/g" \
+      /home/androidusr/docker-android/cli/src/device/emulator.py 2>/dev/null
+  chmod 666 /dev/kvm 2>/dev/null
+  rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null
+  true' >/dev/null 2>&1 || true
+
+# If the phone engine (qemu) isn't running — e.g. the launcher already
+# crashed before the repair — restart the container so everything starts
+# fresh with the repair in place.
+if ! docker exec cloudphone pgrep -f qemu-system >/dev/null 2>&1; then
+  echo "==> Phone engine isn't running — restarting it with the repair applied..."
+  docker restart cloudphone >/dev/null
+fi
+
 echo "==> Starting the phone's adb server (inside the container)..."
 # (Re)start the container's adb server listening on all interfaces so your PC
 # can reach it via the forwarded 127.0.0.1:5037. Serves localhost too, so the
