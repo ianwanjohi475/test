@@ -130,18 +130,22 @@ EOF
 fi
 
 # --- image repair (emulator_11.0), idempotent ------------------------------
-# 1) The image's internal 'sudo' is broken ("sudo: unknown user root"), and
-#    the emulator launcher dies on 'sudo chown ... /dev/kvm' — and it only
-#    tries ONCE. Neuter that chown (we already guarantee /dev/kvm is 666)
-#    and make sure the perms are right.
-# 2) A stale X lock file after 'docker restart' can wedge the screen/VNC
-#    services ("display already active") — clean it.
-docker exec -u root cloudphone sh -c '
+# This image ships with NO 'root' entry in /etc/passwd. That is why its
+# internal sudo dies with "sudo: unknown user root" (killing the emulator
+# launcher, which only tries once) — and why 'docker exec -u root' fails
+# too. Run as NUMERIC uid 0 (no name lookup needed), restore the root
+# entry, neuter the launcher's sudo chown (we guarantee /dev/kvm is 666
+# ourselves), and clean stale X locks left by container restarts.
+if ! docker exec -u 0 cloudphone sh -c '
+  grep -q "^root:" /etc/passwd || echo "root:x:0:0:root:/root:/bin/bash" >> /etc/passwd
+  grep -q "^root:" /etc/group  || echo "root:x:0:" >> /etc/group
   sed -i "s/sudo chown/true chown/g; s/sudo chmod/true chmod/g" \
       /home/androidusr/docker-android/cli/src/device/emulator.py 2>/dev/null
   chmod 666 /dev/kvm 2>/dev/null
   rm -f /tmp/.X0-lock /tmp/.X11-unix/X0 2>/dev/null
-  true' >/dev/null 2>&1 || true
+  true' >/dev/null 2>&1; then
+  echo "!! Warning: couldn't apply the in-container repair (continuing anyway)" >&2
+fi
 
 # If the phone engine (qemu) isn't running — e.g. the launcher already
 # crashed before the repair — restart the container so everything starts

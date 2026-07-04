@@ -34,7 +34,7 @@ fi
 resdir=$(dirname "$posters")
 
 if [[ "$1" == "--reset" ]]; then
-  docker exec -u root cloudphone sh -c \
+  docker exec -u 0 cloudphone sh -c \
     "sed -i '/^poster custom/,/^default custom-poster.png/d' '$posters'; rm -f '$resdir/custom-poster.png'"
   echo "==> Camera restored to the normal virtual scene."
 else
@@ -45,10 +45,10 @@ else
     *) echo "!! Use a PNG or JPG image." >&2; exit 1 ;;
   esac
   docker cp "$img" cloudphone:"$resdir/custom-poster.png"
-  docker exec -u root cloudphone chmod 644 "$resdir/custom-poster.png"
+  docker exec -u 0 cloudphone chmod 644 "$resdir/custom-poster.png"
   # place the image right in front of the camera's starting viewpoint
   if ! docker exec cloudphone grep -q '^poster custom' "$posters"; then
-    docker exec -u root cloudphone sh -c \
+    docker exec -u 0 cloudphone sh -c \
       "printf '\nposter custom\nsize 1.9 1.4\nposition 0 0.4 -1.2\nrotation 0 0 0\ndefault custom-poster.png\n' >> '$posters'"
   fi
   echo "==> The camera live feed will now show: $img"
