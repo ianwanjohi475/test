@@ -61,6 +61,12 @@ Three screens, one phone — use any or all at the same time:
     smoothness: 1200px / 30 fps / 4 Mbps)
   - shortcuts while it runs (left Alt): `Alt+F` fullscreen, `Alt+H` home,
     `Alt+B` back, `Alt+P` power, `Alt+↑/↓` volume, `Alt+N` notifications
+- **Camera: show YOUR image in the live feed** (any app that opens the
+  camera — WhatsApp, browser, QR scanners — sees it in the viewfinder):
+  `bash windows/camera-image.sh /mnt/c/Users/You/Pictures/qr.png` ·
+  back to normal: `bash windows/camera-image.sh --reset`
+- **Send files to the phone for "upload from gallery"** (usable by any
+  app/browser file picker): `bash windows/push-to-gallery.sh photo.jpg ...`
 - **Install apps — the "Play Store" of this phone is Aurora Store** (installed
   automatically by setup): open Aurora Store on the phone → *Anonymous* login
   (or your Google account) → search and install anything from the Google Play
