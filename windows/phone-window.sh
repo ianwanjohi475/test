@@ -320,6 +320,18 @@ size="${SIZE:-1200}"      # cap the streamed longer side (0 = native)
 fps="${FPS:-30}"          # 30 fps looks fluid and halves the encode work
 bitrate="${BITRATE:-4M}"
 
+# Make sure there's an app store to install apps from. Factory resets wipe
+# it, so (re)install Aurora Store (full Play catalog) + F-Droid if missing.
+if ! adb -s "$serial" shell pm list packages 2>/dev/null | grep -q com.aurora.store; then
+  echo "==> Aurora Store not found — installing it (one time, needs internet)..."
+  if bash "$(dirname "$(readlink -f "$0")")/../scripts/install-appstore.sh"; then
+    echo "    App store installed ✅"
+  else
+    echo "    (Couldn't install the store now — you can retry later:" >&2
+    echo "       bash scripts/install-appstore.sh )" >&2
+  fi
+fi
+
 # wake the screen so the window never opens onto a black, sleeping phone
 adb -s "$serial" shell input keyevent KEYCODE_WAKEUP >/dev/null 2>&1 || true
 

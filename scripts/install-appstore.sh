@@ -22,15 +22,22 @@ curl -fSL -o "$TMP/aurora.apk" "https://f-droid.org/repo/com.aurora.store_${CODE
 
 install_one() {  # install_one <apk-path>
   local apk="$1" name; name=$(basename "$apk")
-  # Path 1: Windows stack — the docker-android container has adb inside it
-  if docker exec cloudphone which adb >/dev/null 2>&1; then
+  # Path 1 (preferred): the container's own adb SERVER on host port 5038 —
+  # the same one phone-window.sh uses, where the phone is a known-online
+  # device. Works even when the container's default adb has no device.
+  if command -v adb >/dev/null 2>&1 \
+     && ADB_SERVER_SOCKET=tcp:localhost:5038 adb devices 2>/dev/null | awk '$2=="device"{f=1} END{exit !f}'; then
+    local s; s=$(ADB_SERVER_SOCKET=tcp:localhost:5038 adb devices | awk '$2=="device"{print $1; exit}')
+    ADB_SERVER_SOCKET=tcp:localhost:5038 adb -s "$s" install -r "$apk"
+  # Path 2: Windows stack — run adb inside the docker-android container
+  elif docker exec cloudphone which adb >/dev/null 2>&1; then
     docker cp "$apk" cloudphone:/tmp/"$name"
     docker exec cloudphone adb install -r /tmp/"$name"
-  # Path 2: VPS/redroid stack — the container IS Android, use pm directly
+  # Path 3: VPS/redroid stack — the container IS Android, use pm directly
   elif docker exec cloudphone sh -c 'command -v pm' >/dev/null 2>&1; then
     docker cp "$apk" cloudphone:/data/local/tmp/"$name"
     docker exec cloudphone sh -c "pm install -r /data/local/tmp/$name && rm /data/local/tmp/$name"
-  # Path 3: plain adb over the remapped port
+  # Path 4: plain adb over the remapped port
   else
     adb connect localhost:5557 >/dev/null
     adb -s localhost:5557 install -r "$apk"
