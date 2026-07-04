@@ -90,8 +90,25 @@ fi
 case "$kvm_mode" in
   *6|*7) ;;  # world read+write — the emulator can open it
   *)
-    echo "==> /dev/kvm is mode $kvm_mode — the phone can't open it. Fixing (sudo)..."
-    sudo chmod 666 /dev/kvm
+    echo "==> /dev/kvm is mode $kvm_mode — the phone can't open it."
+    echo "    >>> sudo needs your PASSWORD below to fix it — type it now <<<"
+    if ! sudo chmod 666 /dev/kvm; then
+      cat >&2 <<'EOF'
+!! sudo didn't complete (wrong password or timed out). Fix it manually:
+
+     sudo chmod 666 /dev/kvm
+
+   then re-run:  bash windows/phone-window.sh
+EOF
+      exit 1
+    fi
+    # Make the fix permanent: WSL runs this on every distro start, so KVM
+    # is never root-only again after a Windows/WSL restart. Only added if
+    # wsl.conf has no [boot] section yet (don't clobber a user's own one).
+    if ! grep -q '^\[boot\]' /etc/wsl.conf 2>/dev/null; then
+      printf '\n[boot]\ncommand = chmod 666 /dev/kvm\n' | sudo tee -a /etc/wsl.conf >/dev/null 2>&1 \
+        && echo "    (made permanent via /etc/wsl.conf — won't ask again after restarts)"
+    fi
     echo "==> Restarting the phone so it boots with working acceleration..."
     docker restart cloudphone >/dev/null
     ;;
