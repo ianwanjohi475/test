@@ -70,6 +70,19 @@ echo
 
 # ---- match the crash to this stack's known failure modes -------------------
 diagnosed=0
+if echo "$crash" | grep -qE 'libndk_translation|SIGILL|signal 4'; then
+  diagnosed=1
+  cat <<EOF
+DIAGNOSIS 0 — the ARM translator can't run this app's 64-bit native code.
+  The app is ARM-only and this phone is x86_64, so its native code runs
+  through the emulator's ARM translator — which hit a modern arm64
+  instruction it doesn't know (SIGILL). Common with apps that do
+  on-device ML (camera/ID scanning).
+  FIX: install the app's 32-bit ARM build instead — that translation
+       path is far more complete:
+         bash windows/install-32bit.sh $pkg
+EOF
+fi
 if echo "$crash" | grep -qE 'UnsatisfiedLinkError|dlopen failed|couldn.t find "lib|\.so" not found'; then
   diagnosed=1
   cat <<'EOF'
