@@ -15,6 +15,8 @@ STOOQ_URL = "https://stooq.com/q/d/l/?s={symbol}&i=d"
 
 
 def _standardize(df: pd.DataFrame) -> pd.DataFrame:
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
     df = df.rename(columns=str.title)
     df.index = pd.to_datetime(df.index)
     cols = ["Open", "High", "Low", "Close"]
@@ -27,7 +29,16 @@ def download_stooq(symbol: str = "eurusd") -> pd.DataFrame:
         STOOQ_URL.format(symbol=symbol), headers={"User-Agent": "Mozilla/5.0"}
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
-        raw = resp.read().decode()
+        raw = resp.read().decode("utf-8-sig", errors="replace").strip()
+
+    first_line = raw.splitlines()[0] if raw else ""
+    if not first_line.lower().startswith("date"):
+        raise RuntimeError(
+            "Stooq did not return CSV price data. Response began with: "
+            f"{raw[:120]!r}. This usually means Stooq's free daily download "
+            "limit was reached or the symbol is unknown. "
+            "Try again tomorrow, or use: --source yahoo --symbol EURUSD=X"
+        )
     df = pd.read_csv(io.StringIO(raw), index_col="Date")
     return _standardize(df)
 
@@ -36,7 +47,13 @@ def download_yahoo(symbol: str = "EURUSD=X", start: str = "2015-01-01") -> pd.Da
     import yfinance as yf
 
     df = yf.download(symbol, start=start, interval="1d", progress=False,
-                     auto_adjust=True, multi_level_index=False)
+                     auto_adjust=True)
+    if df is None or len(df) == 0:
+        raise RuntimeError(
+            f"Yahoo Finance returned no data for {symbol!r}. Check the "
+            "symbol (FX pairs end in '=X', e.g. EURUSD=X) and your "
+            "internet connection."
+        )
     return _standardize(df)
 
 
