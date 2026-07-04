@@ -72,16 +72,29 @@ echo
 diagnosed=0
 if echo "$crash" | grep -qE 'libndk_translation|SIGILL|signal 4'; then
   diagnosed=1
-  cat <<EOF
+  if [[ "${abi:-}" == arm64* ]]; then
+    cat <<EOF
 DIAGNOSIS 0 — the ARM translator can't run this app's 64-bit native code.
   The app is ARM-only and this phone is x86_64, so its native code runs
   through the emulator's ARM translator — which hit a modern arm64
-  instruction it doesn't know (SIGILL). Common with apps that do
-  on-device ML (camera/ID scanning).
-  FIX: install the app's 32-bit ARM build instead — that translation
-       path is far more complete:
+  instruction it doesn't know. Common with apps that do on-device ML
+  (camera/ID scanning).
+  FIX (try in order):
+    1. the 32-bit ARM build — a different, more complete translation path:
          bash windows/install-32bit.sh $pkg
+    2. a newer Android with a newer translator:
+         bash windows/switch-android.sh 13
 EOF
+  else
+    cat <<EOF
+DIAGNOSIS 0 — this Android version's ARM translator can't run this app
+  at all (its 32-bit path failed too). The translator is part of the
+  Android image, so the fix is a newer Android with a newer translator:
+      bash windows/switch-android.sh 13
+  (wipes apps/data — it prints exactly what happens and asks first)
+  then reinstall the app from Aurora Store and re-run this script.
+EOF
+  fi
 fi
 if echo "$crash" | grep -qE 'UnsatisfiedLinkError|dlopen failed|couldn.t find "lib|\.so" not found'; then
   diagnosed=1

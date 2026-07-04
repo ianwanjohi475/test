@@ -117,13 +117,12 @@ if [[ -n "$alive" && -z "$crash" ]]; then
   echo "✅ The app is running (pid $alive) with no crash — check the phone window!"
 elif [[ -n "$crash" ]]; then
   echo
-  echo "!! Still crashing — the 32-bit path didn't save it. Last resort options:"
-  echo "   - the app's own website flow in the phone's browser (identity apps"
-  echo "     like Persona fully support the browser flow)"
-  echo "   - a newer Android image translates more instructions: in"
-  echo "     windows/docker-compose.yml switch emulator_11.0 -> emulator_13.0,"
-  echo "     then  bash windows/factory-reset.sh  (heavier, but its arm64"
-  echo "     translator is much newer)"
+  echo "!! Still crashing — the 32-bit path didn't save it. Next options:"
+  echo "   - a newer Android image ships a much newer translator:"
+  echo "       bash windows/switch-android.sh 13"
+  echo "     then reinstall the app from Aurora Store"
+  echo "   - or the app's own website flow in the phone's browser (identity"
+  echo "     apps like Persona fully support the browser flow)"
   echo
   echo "$crash" | tail -n 25
 else
