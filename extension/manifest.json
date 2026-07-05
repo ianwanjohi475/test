@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "URL Extractor & Responder",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A sidebar for any site: extract every URL (page links + all loaded resources) and fetch each one to see its HTTP response inline.",
   "permissions": [
     "activeTab",
     "scripting",
     "sidePanel",
-    "tabs"
+    "tabs",
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

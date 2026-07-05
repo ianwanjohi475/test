@@ -7,14 +7,21 @@ URL to inspect its HTTP response** — status code, headers, timing, and body.
 ## What it does
 
 - Opens as a **sidebar** (Chrome Side Panel) that stays open while you browse.
-- Collects URLs from **two sources**, de-duplicated and tagged:
+- Collects URLs from **three sources**, de-duplicated and tagged:
   - The **DOM**: links (`<a>`, `<area>`, `<link>`), images (`<img>`, `srcset`),
     scripts, iframes, media, form `action`s, inline `url(...)` styles, and bare
     `http(s)://…` URLs in page text.
-  - **Everything the page actually loaded** over the network (via the
-    Performance API) — the same set you'd see in DevTools › Network: scripts,
-    CSS, `xhr`/`fetch` requests, images, fonts, media. Tagged `request`,
-    `script`, `css`, `font`, etc.
+  - The **Performance timeline** — resources the page loaded.
+  - **Live network capture** (via `webRequest`) — every request the page fires,
+    including dynamic **XHR/fetch POSTs like `graphql`** that never appear in
+    the DOM or the (often-cleared) Performance timeline. This is why requests
+    you only see in DevTools › Network now show up here too. Each live request
+    also shows its **real observed status** (e.g. `200`, `POST`, `request`)
+    without re-fetching — hit **Fetch** on it to also pull the body.
+
+  > Live capture records requests from the moment the extension is running.
+  > If a request already fired before you opened the sidebar, **reload the
+  > page** (or hit **Rescan**) to capture it.
 - **Fetch all** grabs the response for every shown URL (6 in parallel) and
   shows **each URL together with its response inline** — status, content type,
   timing, and a body preview right under the URL. Click **▼ Details** on any
@@ -54,6 +61,8 @@ can read many cross-origin responses a page script would be CORS-blocked from.
 - `sidePanel` — render the sidebar UI.
 - `activeTab` + `scripting` — inject the scanner into the current tab.
 - `tabs` — notice tab switches / navigations for auto re-scan.
+- `webRequest` — observe the page's network requests so dynamic XHR/fetch
+  calls (like `graphql`) are captured, not just DOM URLs.
 - `<all_urls>` host permission — so the service worker can fetch arbitrary
   extracted URLs and read their responses.
 

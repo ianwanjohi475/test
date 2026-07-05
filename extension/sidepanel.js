@@ -4,7 +4,8 @@
 // HTTP response inline in the list.
 
 let allUrls = []; // [{ url, kinds, text }]
-const responseCache = new Map(); // url -> response object from background
+const responseCache = new Map(); // url -> response object from a manual fetch
+const observed = new Map(); // url -> { status, method, type, fromCache, error } seen live on the network
 const expanded = new Set(); // urls whose full detail is expanded inline
 let statusFilter = "all";
 let currentTabId = null;
@@ -48,6 +49,35 @@ async function getActiveTab() {
   return tab;
 }
 
+// Map a webRequest resource type to a short source tag.
+function typeTag(t) {
+  if (t === "xmlhttprequest" || t === "fetch") return "request";
+  if (t === "sub_frame" || t === "main_frame") return "frame";
+  if (t === "stylesheet") return "css";
+  if (t === "script") return "script";
+  if (t === "image" || t === "imageset") return "image";
+  if (t === "font") return "font";
+  if (t === "media") return "media";
+  return t || "resource";
+}
+
+// Merge DOM-scanned URLs with live network requests into one de-duplicated list.
+function mergeUrls(domUrls, liveRequests) {
+  const byUrl = new Map();
+  for (const u of domUrls) byUrl.set(u.url, { url: u.url, kinds: new Set(u.kinds), text: u.text || "" });
+  for (const r of liveRequests) {
+    let e = byUrl.get(r.url);
+    if (!e) {
+      e = { url: r.url, kinds: new Set(), text: "" };
+      byUrl.set(r.url, e);
+    }
+    e.kinds.add(typeTag(r.type));
+  }
+  return Array.from(byUrl.values())
+    .map((e) => ({ url: e.url, kinds: Array.from(e.kinds.size ? e.kinds : ["resource"]), text: e.text }))
+    .sort((a, b) => a.url.localeCompare(b.url));
+}
+
 async function scan() {
   if (scanning) return;
   scanning = true;
@@ -65,8 +95,17 @@ async function scan() {
       target: { tabId: tab.id, allFrames: false },
       files: ["content.js"],
     });
-    allUrls = (results && results[0] && results[0].result) || [];
+    const domUrls = (results && results[0] && results[0].result) || [];
+
+    // Merge in everything captured live on the network (XHR/fetch/graphql…).
+    const liveRequests = (await chrome.runtime.sendMessage({ type: "getRequests", tabId: tab.id })) || [];
+    allUrls = mergeUrls(domUrls, liveRequests);
+
     responseCache.clear();
+    observed.clear();
+    for (const r of liveRequests) {
+      observed.set(r.url, { status: r.status, method: r.method, type: r.type, fromCache: r.fromCache, error: r.error });
+    }
     expanded.clear();
     render();
   } catch (err) {
@@ -76,24 +115,34 @@ async function scan() {
   }
 }
 
+function classFromStatus(status, failed, redirected) {
+  if (failed) return "err";
+  if (status == null) return null;
+  if (status >= 500) return "server";
+  if (status >= 400) return "client";
+  if (status >= 300 || redirected) return "redir";
+  if (status === 0) return null; // pending / not yet known
+  return "ok";
+}
+
 function statusClass(res) {
   if (!res) return null;
-  if (!res.ok) return "err";
-  if (res.status >= 500) return "server";
-  if (res.status >= 400) return "client";
-  if (res.status >= 300 || res.redirected) return "redir";
-  return "ok";
+  return classFromStatus(res.status, !res.ok, res.redirected);
+}
+
+// Best-known status for a URL: a manual fetch if present, else what we saw live.
+function effectiveClass(url) {
+  const res = responseCache.get(url);
+  if (res && !res.pending) return statusClass(res);
+  const o = observed.get(url);
+  if (o) return classFromStatus(o.status, !!o.error, false);
+  return null;
 }
 
 function matchesStatusFilter(item) {
   if (statusFilter === "all") return true;
-  const cls = statusClass(responseCache.get(item.url));
-  if (statusFilter === "err") return cls === "err";
-  if (statusFilter === "ok") return cls === "ok";
-  if (statusFilter === "redir") return cls === "redir";
-  if (statusFilter === "client") return cls === "client";
-  if (statusFilter === "server") return cls === "server";
-  return true;
+  const cls = effectiveClass(item.url);
+  return cls === statusFilter;
 }
 
 function visibleUrls() {
@@ -141,7 +190,9 @@ function renderRow(item) {
     chip.textContent = kind;
     sub.appendChild(chip);
   }
+  const obs = observed.get(item.url);
   if (res) sub.appendChild(statusBadge(res));
+  else if (obs && (obs.status != null || obs.error)) sub.appendChild(observedBadge(obs));
 
   const actions = document.createElement("div");
   actions.className = "row-actions";
@@ -158,8 +209,37 @@ function renderRow(item) {
   row.appendChild(sub);
 
   // Inline response — shown as soon as the URL is fetched.
-  if (res) row.appendChild(renderResponse(item.url, res));
+  if (res) {
+    row.appendChild(renderResponse(item.url, res));
+  } else if (obs && (obs.status != null || obs.error)) {
+    // We saw this go over the network live — show that response, and offer to
+    // pull the body with a manual fetch.
+    const line = document.createElement("div");
+    line.className = "resp resp-observed";
+    const cls = classFromStatus(obs.status, !!obs.error, false);
+    const label = obs.error ? `✖ ${escapeHtml(obs.error)}` : `${obs.status}`;
+    line.innerHTML =
+      `<div class="resp-line"><span class="dim">live:</span> ` +
+      `<span class="status ${cls === "ok" ? "ok" : cls === "redir" ? "redir" : "err"}">${label}</span>` +
+      `<span class="dim"> · ${escapeHtml(obs.method || "")} · ${escapeHtml(typeTag(obs.type))}${obs.fromCache ? " · cached" : ""} · click Fetch for the body</span></div>`;
+    row.appendChild(line);
+  }
   return row;
+}
+
+function observedBadge(o) {
+  const span = document.createElement("span");
+  span.className = "status";
+  if (o.error) {
+    span.classList.add("err");
+    span.textContent = "FAIL";
+  } else {
+    const cls = classFromStatus(o.status, false, false);
+    span.classList.add(cls === "ok" ? "ok" : cls === "redir" ? "redir" : cls ? "err" : "pending");
+    span.textContent = String(o.status);
+  }
+  span.title = `seen live · ${o.method || ""} ${typeTag(o.type)}`;
+  return span;
 }
 
 function statusBadge(res) {
