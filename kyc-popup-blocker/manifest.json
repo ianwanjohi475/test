@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "KYC Popup Blocker",
+  "version": "1.0.0",
+  "description": "Bypasses blocking KYC modal on Handshake AI by spoofing the tRPC modal requirements response.",
+  "permissions": ["scripting", "storage"],
+  "host_permissions": [
+    "https://ai.joinhandshake.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://ai.joinhandshake.com/*"],
+      "js": ["inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "icons": {
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}
