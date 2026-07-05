@@ -1,101 +1,130 @@
 /**
  * KYC Popup Blocker
  *
- * Strategy: pass the real request through, then MUTATE the response so the
- * blocking KYC modal is reported as complete. This is batch-safe — tRPC packs
- * multiple queries into one positional array, so we can't just return a fake
- * array. Instead we walk whatever the server returned and neutralize only the
- * KYC/modal fields, leaving every other batched query intact.
+ * Intercepts two tRPC endpoints and mutates their responses so KYC shows
+ * as fully completed — visually rendering "Verify your identity" as
+ * struck-through (done) just like the Download row.
  *
- * Optional: point NPOINT_BIN_URL at a bin to override kycDetails from a remote
- * source you control (created at https://www.npoint.io/).
+ * Targets:
+ *   1. blockingModals.getBlockingModalRequirements — kills the blocking gate
+ *   2. profile.getSelf — marks all KYC / identity fields as complete
+ *
+ * npoint bins: create bins at https://www.npoint.io/ and paste the IDs below
+ * to control the patch payloads remotely without touching this file.
  */
 
-const NPOINT_BIN_URL = null; // e.g. "https://api.npoint.io/YOUR_BIN_ID"
-const TARGET_PATH = "blockingModals.getBlockingModalRequirements";
+// ── npoint bin URLs (set to null to use hardcoded defaults) ────────────────
+const NPOINT_BLOCKING_MODAL = null; // e.g. "https://api.npoint.io/XXXXXXXX"
+const NPOINT_PROFILE_SELF   = null; // e.g. "https://api.npoint.io/YYYYYYYY"
 
-const COMPLETED_KYC = {
-  hasCompletedBlockingKyc: true,
-  hasCompletedGeneralOnboarding: true,
-  blockingKycCurrentStatus: "approved",
-  hasCompletedRegularKyc: true,
+// ── hardcoded patch payloads ───────────────────────────────────────────────
+const MODAL_PATCH = {
+  activeModal: null,
+  kycDetails: {
+    hasCompletedBlockingKyc: true,
+    hasCompletedGeneralOnboarding: true,
+    blockingKycCurrentStatus: "approved",
+    hasCompletedRegularKyc: true,
+  },
 };
 
-const log = (...a) => console.log("%c[KYC Blocker]", "color:#5599ff", ...a);
+const PROFILE_PATCH = {
+  isFullyOnboarded: true,
+  requiresOnboardingSurvey: false,
+  requiresIdentityVerification: false,
+  hasCompletedKyc: true,
+  hasCompletedIdentityVerification: true,
+  hasSubmittedIdentityVerification: true,
+};
 
-let remoteKyc = null;
-if (NPOINT_BIN_URL) {
-  // Prefetch the override once so response mutation stays synchronous-ish.
-  fetch(NPOINT_BIN_URL)
-    .then((r) => r.json())
-    .then((d) => { remoteKyc = d; log("loaded npoint override"); })
-    .catch((e) => log("npoint fetch failed:", e));
+// ── targets ────────────────────────────────────────────────────────────────
+const TARGETS = [
+  {
+    path: "blockingModals.getBlockingModalRequirements",
+    npointUrl: NPOINT_BLOCKING_MODAL,
+    patch: MODAL_PATCH,
+    remoteData: null,
+  },
+  {
+    path: "profile.getSelf",
+    npointUrl: NPOINT_PROFILE_SELF,
+    patch: PROFILE_PATCH,
+    remoteData: null,
+  },
+];
+
+const log = (...a) => console.log("%c[KYC Blocker]", "color:#5599ff;font-weight:bold", ...a);
+
+// Prefetch npoint overrides once at startup
+const _nativeFetch = window.fetch.bind(window);
+for (const t of TARGETS) {
+  if (t.npointUrl) {
+    _nativeFetch(t.npointUrl)
+      .then((r) => r.json())
+      .then((d) => { t.remoteData = d; log(`npoint loaded for ${t.path}`); })
+      .catch((e) => log(`npoint fetch failed for ${t.path}:`, e));
+  }
 }
 
-/**
- * Recursively find and neutralize any KYC/modal state in a parsed response.
- * Returns true if anything was changed.
- */
-function neutralize(node) {
+// ── recursive patcher ──────────────────────────────────────────────────────
+function applyPatch(node, patch) {
   if (node === null || typeof node !== "object") return false;
-
   let changed = false;
 
   if (Array.isArray(node)) {
-    for (const item of node) changed = neutralize(item) || changed;
+    for (const item of node) changed = applyPatch(item, patch) || changed;
     return changed;
   }
 
-  // Kill any "active blocking modal" signal.
-  if ("activeModal" in node && node.activeModal != null) {
-    node.activeModal = null;
-    changed = true;
-  }
-
-  // Overwrite kycDetails with a fully-completed state.
-  if (node.kycDetails && typeof node.kycDetails === "object") {
-    Object.assign(node.kycDetails, remoteKyc?.kycDetails || COMPLETED_KYC);
-    changed = true;
-  }
-
-  // Generic: flip any boolean flag that reads like a completion gate.
-  for (const key of Object.keys(node)) {
-    if (typeof node[key] === "boolean" && /hasCompleted.*kyc/i.test(key)) {
-      if (node[key] !== true) { node[key] = true; changed = true; }
-    }
-    if (/blockingKycCurrentStatus/i.test(key) && node[key] !== "approved") {
-      node[key] = "approved";
+  // Apply flat key-value overrides anywhere the key appears in this object
+  for (const [key, val] of Object.entries(patch)) {
+    if (key in node) {
+      if (typeof val === "object" && val !== null && typeof node[key] === "object") {
+        // Merge nested objects (e.g. kycDetails)
+        Object.assign(node[key], val);
+      } else {
+        node[key] = val;
+      }
       changed = true;
     }
   }
 
+  // Recurse into child objects
   for (const key of Object.keys(node)) {
     if (node[key] && typeof node[key] === "object") {
-      changed = neutralize(node[key]) || changed;
+      changed = applyPatch(node[key], patch) || changed;
     }
   }
 
   return changed;
 }
 
-// ---- fetch interception -------------------------------------------------
-const _fetch = window.fetch.bind(window);
+function matchTarget(url) {
+  for (const t of TARGETS) {
+    if (url && url.includes(t.path)) return t;
+  }
+  return null;
+}
 
+function effectivePatch(target) {
+  return target.remoteData || target.patch;
+}
+
+// ── fetch interception ─────────────────────────────────────────────────────
 window.fetch = async function (input, init) {
   const url =
     typeof input === "string" ? input :
     input instanceof URL ? input.href :
     input?.url;
 
-  const res = await _fetch(input, init);
-
-  if (!url || !url.includes(TARGET_PATH)) return res;
+  const target = matchTarget(url);
+  const res = await _nativeFetch(input, init);
+  if (!target) return res;
 
   try {
-    const clone = res.clone();
-    const data = await clone.json();
-    const changed = neutralize(data);
-    log(changed ? "patched response ✓" : "no KYC fields found, passing through", url);
+    const data = await res.clone().json();
+    const changed = applyPatch(data, effectivePatch(target));
+    log(changed ? `✓ patched [${target.path}]` : `no matching fields [${target.path}]`);
 
     return new Response(JSON.stringify(data), {
       status: res.status,
@@ -103,45 +132,47 @@ window.fetch = async function (input, init) {
       headers: res.headers,
     });
   } catch (e) {
-    log("failed to patch, passing original through:", e);
+    log("patch error, passing original:", e);
     return res;
   }
 };
 
-// ---- XHR interception (legacy fallback) --------------------------------
+// ── XHR interception ───────────────────────────────────────────────────────
 const _open = XMLHttpRequest.prototype.open;
 XMLHttpRequest.prototype.open = function (method, url, ...rest) {
-  this._kycTarget = typeof url === "string" && url.includes(TARGET_PATH);
+  this._kycTarget = matchTarget(typeof url === "string" ? url : "");
   return _open.call(this, method, url, ...rest);
 };
 
 const _send = XMLHttpRequest.prototype.send;
 XMLHttpRequest.prototype.send = function (body) {
   if (this._kycTarget) {
+    const target = this._kycTarget;
     this.addEventListener("readystatechange", function () {
       if (this.readyState !== 4) return;
       try {
         const data = JSON.parse(this.responseText);
-        if (neutralize(data)) {
+        if (applyPatch(data, effectivePatch(target))) {
           const patched = JSON.stringify(data);
           Object.defineProperty(this, "responseText", { get: () => patched });
-          Object.defineProperty(this, "response", { get: () => patched });
-          log("patched XHR response ✓");
+          Object.defineProperty(this, "response",     { get: () => patched });
+          log(`✓ patched XHR [${target.path}]`);
         }
-      } catch (_) { /* not JSON, ignore */ }
+      } catch (_) {}
     });
   }
   return _send.call(this, body);
 };
 
-// ---- DOM safety net -----------------------------------------------------
-// Blocking modals usually lock scrolling; make sure the page stays usable
-// even if a stale/cached modal briefly renders before our data lands.
+// ── scroll-lock safety net ─────────────────────────────────────────────────
+// In case a cached modal briefly renders before our patch lands
 new MutationObserver(() => {
   const b = document.body;
-  if (b && getComputedStyle(b).overflow === "hidden") {
-    b.style.overflow = "auto";
-  }
-}).observe(document.documentElement, { attributes: true, subtree: true, attributeFilter: ["style", "class"] });
+  if (b && getComputedStyle(b).overflow === "hidden") b.style.overflow = "auto";
+}).observe(document.documentElement, {
+  attributes: true,
+  subtree: true,
+  attributeFilter: ["style", "class"],
+});
 
-log("armed →", TARGET_PATH);
+log("armed →", TARGETS.map((t) => t.path).join(", "));
