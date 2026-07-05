@@ -81,6 +81,8 @@ button:hover { border-color: var(--accent); }
 .filters { display: flex; gap: 4px; margin-top: 8px; flex-wrap: wrap; }
 .pill { padding: 3px 9px; border-radius: 999px; font-size: 12px; }
 .pill.active { background: var(--active); color: var(--active-fg); border-color: var(--active); }
+button.on { background: var(--active); color: var(--active-fg); border-color: var(--active); }
+.resp-observed { border-left-color: var(--muted); }
 
 .summary { margin-top: 7px; color: var(--muted); font-size: 12px; }
 

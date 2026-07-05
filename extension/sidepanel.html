@@ -29,7 +29,11 @@
         <button id="rescan">↻ Rescan</button>
         <button id="fetchall" title="Fetch every URL currently shown">⚡ Fetch all</button>
         <button id="copy" title="Copy all shown URLs">⧉ Copy</button>
-        <button id="export" title="Download shown URLs + statuses as JSON">⭳ Export</button>
+        <button id="export" title="Download every shown URL WITH its full response as JSON">⭳ Export</button>
+      </div>
+
+      <div class="toolbar">
+        <button id="deep" title="Attach like DevTools and reload to capture every request WITH its real response body (graphql, XHR…)">🛰️ Deep capture: off</button>
       </div>
 
       <div class="filters" id="statusFilters">

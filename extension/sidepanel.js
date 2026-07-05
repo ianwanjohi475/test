@@ -10,6 +10,7 @@ const expanded = new Set(); // urls whose full detail is expanded inline
 let statusFilter = "all";
 let currentTabId = null;
 let scanning = false;
+let deepOn = false;
 
 const listEl = document.getElementById("list");
 const summaryEl = document.getElementById("summary");
@@ -22,6 +23,7 @@ document.getElementById("rescan").addEventListener("click", scan);
 document.getElementById("fetchall").addEventListener("click", fetchAll);
 document.getElementById("copy").addEventListener("click", copyVisible);
 document.getElementById("export").addEventListener("click", exportJson);
+document.getElementById("deep").addEventListener("click", toggleDeep);
 filterEl.addEventListener("input", render);
 
 document.getElementById("statusFilters").addEventListener("click", (e) => {
@@ -61,21 +63,52 @@ function typeTag(t) {
   return t || "resource";
 }
 
-// Merge DOM-scanned URLs with live network requests into one de-duplicated list.
-function mergeUrls(domUrls, liveRequests) {
+// Merge DOM-scanned URLs with live + deep network requests into one list.
+function mergeUrls(domUrls, liveRequests, deep) {
   const byUrl = new Map();
   for (const u of domUrls) byUrl.set(u.url, { url: u.url, kinds: new Set(u.kinds), text: u.text || "" });
-  for (const r of liveRequests) {
+  const addReq = (r) => {
     let e = byUrl.get(r.url);
     if (!e) {
       e = { url: r.url, kinds: new Set(), text: "" };
       byUrl.set(r.url, e);
     }
     e.kinds.add(typeTag(r.type));
-  }
+  };
+  for (const r of liveRequests) addReq(r);
+  for (const d of deep || []) addReq(d);
   return Array.from(byUrl.values())
     .map((e) => ({ url: e.url, kinds: Array.from(e.kinds.size ? e.kinds : ["resource"]), text: e.text }))
     .sort((a, b) => a.url.localeCompare(b.url));
+}
+
+// Deep capture: attach like DevTools, reload, and record every request WITH its
+// real response body. Toggling on reloads the page; toggling off detaches.
+async function toggleDeep() {
+  const btn = document.getElementById("deep");
+  const tab = await getActiveTab();
+  if (!tab || !tab.id) return;
+  if (!deepOn) {
+    btn.textContent = "🛰️ Deep capture: starting…";
+    const res = await chrome.runtime.sendMessage({ type: "startDeep", tabId: tab.id });
+    if (!res || !res.ok) {
+      btn.textContent = "🛰️ Deep capture: off";
+      flashSummary("Deep capture failed: " + ((res && res.error) || "unknown") + (res && /devtools/i.test(res.error || "") ? " (close DevTools on this tab first)" : ""));
+      return;
+    }
+    deepOn = true;
+    btn.textContent = "🛰️ Deep capture: ON (rescan to refresh)";
+    btn.classList.add("on");
+    flashSummary("Deep capture on — page reloading, then Rescan to pull responses");
+    // Pull results once the reload completes.
+    setTimeout(scan, 2500);
+  } else {
+    await chrome.runtime.sendMessage({ type: "stopDeep", tabId: tab.id });
+    deepOn = false;
+    btn.textContent = "🛰️ Deep capture: off";
+    btn.classList.remove("on");
+    flashSummary("Deep capture stopped");
+  }
 }
 
 async function scan() {
@@ -97,14 +130,34 @@ async function scan() {
     });
     const domUrls = (results && results[0] && results[0].result) || [];
 
-    // Merge in everything captured live on the network (XHR/fetch/graphql…).
+    // Merge in everything captured live on the network (XHR/fetch/graphql…),
+    // plus deep-captured requests (which additionally carry the response body).
     const liveRequests = (await chrome.runtime.sendMessage({ type: "getRequests", tabId: tab.id })) || [];
-    allUrls = mergeUrls(domUrls, liveRequests);
+    const deep = (await chrome.runtime.sendMessage({ type: "getDeep", tabId: tab.id })) || [];
+    allUrls = mergeUrls(domUrls, liveRequests, deep);
 
     responseCache.clear();
     observed.clear();
     for (const r of liveRequests) {
       observed.set(r.url, { status: r.status, method: r.method, type: r.type, fromCache: r.fromCache, error: r.error });
+    }
+    // Deep capture gives us the real response (headers + body) with no re-fetch,
+    // so treat those as full responses — they render inline AND land in Export.
+    for (const d of deep) {
+      responseCache.set(d.url, {
+        ok: !d.error,
+        status: d.status != null ? d.status : 0,
+        statusText: d.statusText || "",
+        finalUrl: d.url,
+        redirected: false,
+        contentType: d.mimeType || "",
+        headers: d.headers || {},
+        body: d.error ? `[${d.error}]` : (d.body || ""),
+        bodyTruncated: false,
+        method: d.method || "GET",
+        deep: true,
+        elapsedMs: 0,
+      });
     }
     expanded.clear();
     render();
@@ -380,15 +433,31 @@ async function copyVisible() {
 function exportJson() {
   const data = visibleUrls().map((u) => {
     const res = responseCache.get(u.url);
+    const obs = observed.get(u.url);
+    if (res && !res.pending) {
+      return {
+        url: u.url,
+        kinds: u.kinds,
+        source: res.deep ? "deep-capture" : "fetch",
+        status: res.ok ? res.status : "failed",
+        statusText: res.ok ? res.statusText : null,
+        contentType: res.ok ? res.contentType : null,
+        headers: res.ok ? res.headers : null,
+        body: res.ok ? res.body : null,
+        error: res.ok ? null : res.error,
+      };
+    }
+    // Not fetched — fall back to what we observed live (status, no body).
     return {
       url: u.url,
       kinds: u.kinds,
-      status: res ? (res.ok ? res.status : "failed") : null,
-      statusText: res && res.ok ? res.statusText : null,
-      contentType: res && res.ok ? res.contentType : null,
-      headers: res && res.ok ? res.headers : null,
-      body: res && res.ok ? res.body : null,
-      error: res && !res.ok ? res.error : null,
+      source: obs ? "observed" : "not-fetched",
+      status: obs ? obs.status : null,
+      statusText: null,
+      contentType: null,
+      headers: null,
+      body: null,
+      error: obs ? obs.error : null,
     };
   });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });

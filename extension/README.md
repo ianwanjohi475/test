@@ -26,6 +26,15 @@ URL to inspect its HTTP response** — status code, headers, timing, and body.
   shows **each URL together with its response inline** — status, content type,
   timing, and a body preview right under the URL. Click **▼ Details** on any
   row to expand the full headers and full body.
+- **🛰️ Deep capture** — the strongest mode. It attaches to the tab like the
+  DevTools debugger, reloads the page, and records **every request together
+  with its real response body** — including dynamic POST/XHR like `graphql`
+  that a plain re-fetch can't reproduce. Those responses show inline and are
+  included in **Export**. (Chrome shows a "started debugging this browser"
+  banner while it's on; click **Deep capture** again to stop/detach.)
+- **Export** downloads every shown URL **with its full response** (status,
+  headers, and body) to `urls-and-responses.json` — from fetches, deep capture,
+  or the live-observed status when a body wasn't pulled.
 - **Interactive:**
   - **Auto** re-scan when you switch tabs or the page navigates (toggle off any time).
   - **Fetch** / **Refetch** a single URL, or **Fetch all** shown URLs.
@@ -63,6 +72,8 @@ can read many cross-origin responses a page script would be CORS-blocked from.
 - `tabs` — notice tab switches / navigations for auto re-scan.
 - `webRequest` — observe the page's network requests so dynamic XHR/fetch
   calls (like `graphql`) are captured, not just DOM URLs.
+- `debugger` — used only by **Deep capture** to read real response bodies via
+  the DevTools protocol. Nothing attaches until you turn Deep capture on.
 - `<all_urls>` host permission — so the service worker can fetch arbitrary
   extracted URLs and read their responses.
 

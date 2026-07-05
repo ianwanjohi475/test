@@ -71,7 +71,133 @@ chrome.webRequest.onErrorOccurred.addListener(
   { urls: ["<all_urls>"] }
 );
 
-chrome.tabs.onRemoved.addListener((tabId) => requestsByTab.delete(tabId));
+chrome.tabs.onRemoved.addListener((tabId) => {
+  requestsByTab.delete(tabId);
+  deepByTab.delete(tabId);
+});
+
+// ---- Deep capture via the DevTools protocol (real response BODIES) ---------
+// webRequest gives URL + status but never the response body. Attaching the
+// debugger lets us read the actual body of every request, including dynamic
+// POST/XHR like graphql — the full "url + its response".
+
+const DEEP_MAX_BODY = 60000;
+const deepByTab = new Map(); // tabId -> { reqs: Map(requestId->rec), byUrl: Map(url->rec) }
+
+function deepState(tabId) {
+  let s = deepByTab.get(tabId);
+  if (!s) {
+    s = { reqs: new Map(), byUrl: new Map() };
+    deepByTab.set(tabId, s);
+  }
+  return s;
+}
+
+function sendDbg(tabId, cmd, params) {
+  return new Promise((resolve, reject) => {
+    chrome.debugger.sendCommand({ tabId }, cmd, params || {}, (r) => {
+      const e = chrome.runtime.lastError;
+      if (e) reject(e);
+      else resolve(r);
+    });
+  });
+}
+
+function decodeBody(resp, mime) {
+  if (!resp) return "";
+  let text = resp.body || "";
+  if (resp.base64Encoded) {
+    if (/^(text\/|application\/(json|javascript|xml|xhtml)|image\/svg|application\/x-www-form)/i.test(mime || "")) {
+      try {
+        text = decodeURIComponent(escape(atob(text)));
+      } catch (e) {
+        try { text = atob(text); } catch (_) { text = "[base64 body — could not decode]"; }
+      }
+    } else {
+      return `[binary body: ${mime || "unknown"}]`;
+    }
+  }
+  if (text.length > DEEP_MAX_BODY) text = text.slice(0, DEEP_MAX_BODY) + "\n\n[body truncated]";
+  return text;
+}
+
+chrome.debugger.onEvent.addListener(async (source, method, params) => {
+  const tabId = source.tabId;
+  if (tabId == null || !deepByTab.has(tabId)) return;
+  const s = deepState(tabId);
+
+  if (method === "Network.requestWillBeSent") {
+    const r = s.reqs.get(params.requestId) || {};
+    r.url = params.request.url;
+    r.method = params.request.method;
+    r.type = params.type || r.type;
+    r.postData = params.request.postData || r.postData;
+    s.reqs.set(params.requestId, r);
+  } else if (method === "Network.responseReceived") {
+    const r = s.reqs.get(params.requestId) || {};
+    const resp = params.response || {};
+    r.url = resp.url || r.url;
+    r.status = resp.status;
+    r.statusText = resp.statusText || "";
+    r.headers = resp.headers || {};
+    r.mimeType = resp.mimeType || "";
+    r.type = params.type || r.type;
+    s.reqs.set(params.requestId, r);
+  } else if (method === "Network.loadingFinished") {
+    const r = s.reqs.get(params.requestId);
+    if (!r || !isHttp(r.url)) return;
+    try {
+      const body = await sendDbg(tabId, "Network.getResponseBody", { requestId: params.requestId });
+      r.body = decodeBody(body, r.mimeType);
+    } catch (e) {
+      r.body = `[body unavailable: ${e && e.message ? e.message : e}]`;
+    }
+    s.byUrl.set(r.url, r);
+  } else if (method === "Network.loadingFailed") {
+    const r = s.reqs.get(params.requestId);
+    if (r && isHttp(r.url)) {
+      r.error = params.errorText || "failed";
+      s.byUrl.set(r.url, r);
+    }
+  }
+});
+
+// If the user closes the debugger banner or DevTools takes over, forget state.
+chrome.debugger.onDetach.addListener((source) => {
+  // Keep whatever we already captured; just mark it not-live by leaving data.
+  void source;
+});
+
+async function startDeep(tabId) {
+  try {
+    await new Promise((resolve, reject) => {
+      chrome.debugger.attach({ tabId }, "1.3", () => {
+        const e = chrome.runtime.lastError;
+        if (e && !/already attached/i.test(e.message || "")) reject(e);
+        else resolve();
+      });
+    });
+    deepByTab.set(tabId, { reqs: new Map(), byUrl: new Map() });
+    await sendDbg(tabId, "Network.enable", {});
+    await sendDbg(tabId, "Page.enable", {});
+    await sendDbg(tabId, "Page.reload", { ignoreCache: false });
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e && e.message ? e.message : e) };
+  }
+}
+
+async function stopDeep(tabId) {
+  try {
+    await new Promise((resolve) => {
+      chrome.debugger.detach({ tabId }, () => {
+        void chrome.runtime.lastError;
+        resolve();
+      });
+    });
+  } catch (e) { /* ignore */ }
+  return { ok: true };
+}
 
 // ---- Messaging ------------------------------------------------------------
 
@@ -80,6 +206,19 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     const m = requestsByTab.get(msg.tabId);
     sendResponse(m ? Array.from(m.values()) : []);
     return; // synchronous
+  }
+  if (msg && msg.type === "getDeep") {
+    const s = deepByTab.get(msg.tabId);
+    sendResponse(s ? Array.from(s.byUrl.values()) : []);
+    return; // synchronous
+  }
+  if (msg && msg.type === "startDeep") {
+    startDeep(msg.tabId).then(sendResponse);
+    return true; // async
+  }
+  if (msg && msg.type === "stopDeep") {
+    stopDeep(msg.tabId).then(sendResponse);
+    return true; // async
   }
   if (msg && msg.type === "fetchUrl") {
     fetchUrl(msg.url, msg.method || "GET").then(sendResponse);
