@@ -1,18 +1,20 @@
 {
   "manifest_version": 3,
   "name": "URL Extractor & Responder",
-  "version": "1.0.0",
-  "description": "Extract every URL from any site and fetch each one to inspect its HTTP response (status, headers, body).",
-  "permissions": ["activeTab", "scripting"],
+  "version": "1.1.0",
+  "description": "A sidebar for any site: extract every URL on the page and fetch each one to inspect its HTTP response (status, headers, body).",
+  "permissions": ["activeTab", "scripting", "sidePanel", "tabs"],
   "host_permissions": ["<all_urls>"],
   "action": {
-    "default_title": "URL Extractor & Responder",
-    "default_popup": "popup.html",
+    "default_title": "Open URL Extractor sidebar",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "background": {
     "service_worker": "background.js"

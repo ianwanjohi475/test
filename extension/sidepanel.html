@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="sidepanel.css" />
+    <title>URL Extractor & Responder</title>
+  </head>
+  <body>
+    <header>
+      <div class="titlebar">
+        <h1>URL Extractor</h1>
+        <label class="auto" title="Re-scan automatically when you switch tabs or the page navigates">
+          <input id="auto" type="checkbox" checked /> Auto
+        </label>
+      </div>
+
+      <div id="page" class="page" title="Page being scanned"></div>
+
+      <div class="toolbar">
+        <input id="filter" type="search" placeholder="Filter URLs…" autocomplete="off" />
+        <select id="method" title="HTTP method used when fetching">
+          <option value="GET">GET</option>
+          <option value="HEAD">HEAD</option>
+        </select>
+      </div>
+
+      <div class="toolbar">
+        <button id="rescan">↻ Rescan</button>
+        <button id="fetchall" title="Fetch every URL currently shown">⚡ Fetch all</button>
+        <button id="copy" title="Copy all shown URLs">⧉ Copy</button>
+        <button id="export" title="Download shown URLs + statuses as JSON">⭳ Export</button>
+      </div>
+
+      <div class="filters" id="statusFilters">
+        <button data-f="all" class="pill active">All</button>
+        <button data-f="ok" class="pill">2xx</button>
+        <button data-f="redir" class="pill">3xx</button>
+        <button data-f="client" class="pill">4xx</button>
+        <button data-f="server" class="pill">5xx</button>
+        <button data-f="err" class="pill">Failed</button>
+      </div>
+
+      <div id="summary" class="summary"></div>
+    </header>
+
+    <main id="list" class="list"></main>
+
+    <div id="detail" class="detail hidden">
+      <div class="detail-head">
+        <button id="detail-back">← Back</button>
+        <button id="detail-open" title="Open in a new tab">↗ Open</button>
+        <span id="detail-url" class="detail-url"></span>
+      </div>
+      <div id="detail-body" class="detail-body"></div>
+    </div>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
