@@ -54,6 +54,24 @@
     if (matches) matches.forEach((m) => add(m, "text"));
   }
 
+  // Everything the page actually LOADED over the network — the same set you'd
+  // see in DevTools › Network (scripts, css, xhr/fetch, images, fonts, media…).
+  try {
+    performance.getEntriesByType("resource").forEach((e) => {
+      // initiatorType: script | link | css | img | xmlhttprequest | fetch | font | ...
+      const kind = e.initiatorType === "xmlhttprequest" || e.initiatorType === "fetch" ? "request" : (e.initiatorType || "resource");
+      add(e.name, kind);
+    });
+  } catch (e) { /* performance API unavailable */ }
+
+  // Inline style url(...) references (background images, fonts).
+  const styleRe = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
+  document.querySelectorAll("[style]").forEach((el) => {
+    let m;
+    const s = el.getAttribute("style") || "";
+    while ((m = styleRe.exec(s))) add(m[1], "style");
+  });
+
   return Array.from(seen.values())
     .map((e) => ({ url: e.url, kinds: Array.from(e.kinds), text: e.text }))
     .sort((a, b) => a.url.localeCompare(b.url));

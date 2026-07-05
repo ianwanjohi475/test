@@ -7,21 +7,26 @@ URL to inspect its HTTP response** — status code, headers, timing, and body.
 ## What it does
 
 - Opens as a **sidebar** (Chrome Side Panel) that stays open while you browse.
-- Scans the active tab and collects URLs from links (`<a>`, `<area>`,
-  `<link>`), images (`<img>`, `srcset`), scripts, iframes, media, form
-  `action`s, and bare `http(s)://…` URLs in page text.
-- De-duplicates and tags each URL by source (link, image, script, frame,
-  form, text…).
+- Collects URLs from **two sources**, de-duplicated and tagged:
+  - The **DOM**: links (`<a>`, `<area>`, `<link>`), images (`<img>`, `srcset`),
+    scripts, iframes, media, form `action`s, inline `url(...)` styles, and bare
+    `http(s)://…` URLs in page text.
+  - **Everything the page actually loaded** over the network (via the
+    Performance API) — the same set you'd see in DevTools › Network: scripts,
+    CSS, `xhr`/`fetch` requests, images, fonts, media. Tagged `request`,
+    `script`, `css`, `font`, etc.
+- **Fetch all** grabs the response for every shown URL (6 in parallel) and
+  shows **each URL together with its response inline** — status, content type,
+  timing, and a body preview right under the URL. Click **▼ Details** on any
+  row to expand the full headers and full body.
 - **Interactive:**
   - **Auto** re-scan when you switch tabs or the page navigates (toggle off any time).
-  - **Fetch** a single URL, or **Fetch all** shown URLs (6 at a time).
+  - **Fetch** / **Refetch** a single URL, or **Fetch all** shown URLs.
   - **Filter** by text, and filter the list by result: `2xx / 3xx / 4xx / 5xx / Failed`.
   - **GET or HEAD** method switch.
   - **↗ Open** any URL in a new tab.
-  - **Copy** all shown URLs, or **Export** them (with statuses) to `urls.json`.
-- Click a URL to see the full response: status, redirect + final URL,
-  all response headers, content type, round-trip time, and a body preview
-  (text/JSON/XML/SVG; large bodies truncated, binaries skipped).
+  - **Copy** all shown URLs, or **Export** every URL **with its full response**
+    (headers + body) to `urls-and-responses.json`.
 
 Fetches run in the background service worker (which holds `<all_urls>`), so it
 can read many cross-origin responses a page script would be CORS-blocked from.

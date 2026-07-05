@@ -1,9 +1,11 @@
-// Side-panel controller: scans the active tab for URLs, renders them live, and
-// fetches individual (or all) URLs via the background service worker to show
-// each HTTP response. Persists across tab switches and can auto-rescan.
+// Side-panel controller: scans the active tab for every URL (DOM + loaded
+// network resources), renders them live, and fetches individual (or all) URLs
+// via the background service worker — showing each URL together with its
+// HTTP response inline in the list.
 
 let allUrls = []; // [{ url, kinds, text }]
 const responseCache = new Map(); // url -> response object from background
+const expanded = new Set(); // urls whose full detail is expanded inline
 let statusFilter = "all";
 let currentTabId = null;
 let scanning = false;
@@ -14,16 +16,11 @@ const filterEl = document.getElementById("filter");
 const methodEl = document.getElementById("method");
 const autoEl = document.getElementById("auto");
 const pageEl = document.getElementById("page");
-const detailEl = document.getElementById("detail");
-const detailBodyEl = document.getElementById("detail-body");
-const detailUrlEl = document.getElementById("detail-url");
-const detailOpenEl = document.getElementById("detail-open");
 
 document.getElementById("rescan").addEventListener("click", scan);
 document.getElementById("fetchall").addEventListener("click", fetchAll);
 document.getElementById("copy").addEventListener("click", copyVisible);
 document.getElementById("export").addEventListener("click", exportJson);
-document.getElementById("detail-back").addEventListener("click", () => detailEl.classList.add("hidden"));
 filterEl.addEventListener("input", render);
 
 document.getElementById("statusFilters").addEventListener("click", (e) => {
@@ -54,7 +51,6 @@ async function getActiveTab() {
 async function scan() {
   if (scanning) return;
   scanning = true;
-  detailEl.classList.add("hidden");
   listEl.innerHTML = `<div class="empty">Scanning page…</div>`;
   summaryEl.textContent = "";
   try {
@@ -71,6 +67,7 @@ async function scan() {
     });
     allUrls = (results && results[0] && results[0].result) || [];
     responseCache.clear();
+    expanded.clear();
     render();
   } catch (err) {
     listEl.innerHTML = `<div class="empty">Could not scan this page.<br><small>${escapeHtml(String(err.message || err))}</small></div>`;
@@ -90,8 +87,7 @@ function statusClass(res) {
 
 function matchesStatusFilter(item) {
   if (statusFilter === "all") return true;
-  const res = responseCache.get(item.url);
-  const cls = statusClass(res);
+  const cls = statusClass(responseCache.get(item.url));
   if (statusFilter === "err") return cls === "err";
   if (statusFilter === "ok") return cls === "ok";
   if (statusFilter === "redir") return cls === "redir";
@@ -124,16 +120,19 @@ function render() {
 }
 
 function renderRow(item) {
+  const res = responseCache.get(item.url);
   const row = document.createElement("div");
   row.className = "row";
 
+  // URL (click = fetch if not fetched, else toggle full detail).
   const url = document.createElement("div");
   url.className = "url";
   url.textContent = item.url;
-  url.title = "Click to fetch and view the response";
-  url.addEventListener("click", () => showDetail(item.url));
+  url.title = res ? "Click to expand/collapse the full response" : "Click to fetch this URL";
+  url.addEventListener("click", () => onUrlClick(item.url));
   row.appendChild(url);
 
+  // Sub line: source chips + status badge + actions.
   const sub = document.createElement("div");
   sub.className = "sub";
   for (const kind of item.kinds) {
@@ -142,32 +141,35 @@ function renderRow(item) {
     chip.textContent = kind;
     sub.appendChild(chip);
   }
-
-  const cached = responseCache.get(item.url);
-  if (cached) sub.appendChild(statusBadge(cached));
+  if (res) sub.appendChild(statusBadge(res));
 
   const actions = document.createElement("div");
   actions.className = "row-actions";
-
   const fetchBtn = document.createElement("button");
-  fetchBtn.textContent = cached ? "View" : "Fetch";
-  fetchBtn.addEventListener("click", () => showDetail(item.url));
+  fetchBtn.textContent = res ? "Refetch" : "Fetch";
+  fetchBtn.addEventListener("click", (e) => { e.stopPropagation(); fetchOne(item.url, true); });
   actions.appendChild(fetchBtn);
-
   const openBtn = document.createElement("button");
   openBtn.textContent = "↗";
   openBtn.title = "Open in a new tab";
-  openBtn.addEventListener("click", () => chrome.tabs.create({ url: item.url, active: false }));
+  openBtn.addEventListener("click", (e) => { e.stopPropagation(); chrome.tabs.create({ url: item.url, active: false }); });
   actions.appendChild(openBtn);
-
   sub.appendChild(actions);
   row.appendChild(sub);
+
+  // Inline response — shown as soon as the URL is fetched.
+  if (res) row.appendChild(renderResponse(item.url, res));
   return row;
 }
 
 function statusBadge(res) {
   const span = document.createElement("span");
   span.className = "status";
+  if (res.pending) {
+    span.classList.add("pending");
+    span.textContent = "…";
+    return span;
+  }
   if (!res.ok) {
     span.classList.add("err");
     span.textContent = "FAIL";
@@ -180,30 +182,92 @@ function statusBadge(res) {
   return span;
 }
 
+// Inline response block: always shows a compact summary + body preview; a
+// "Details" toggle expands full headers and the full body.
+function renderResponse(url, res) {
+  const box = document.createElement("div");
+  box.className = "resp";
+
+  if (res.pending) {
+    box.innerHTML = `<div class="resp-line dim">Fetching…</div>`;
+    return box;
+  }
+
+  if (!res.ok && res.error) {
+    box.classList.add("resp-err");
+    box.innerHTML = `<div class="resp-line">✖ ${escapeHtml(res.error)} <span class="dim">· ${res.method} · ${res.elapsedMs} ms</span></div>`;
+    return box;
+  }
+
+  const cls = statusClass(res);
+  const isExpanded = expanded.has(url);
+  const bodyText = res.body || "";
+  const preview = isExpanded ? bodyText : bodyText.slice(0, 300);
+
+  const line = document.createElement("div");
+  line.className = "resp-line";
+  line.innerHTML =
+    `<span class="status ${cls === "ok" ? "ok" : cls === "redir" ? "redir" : "err"}">${res.status} ${escapeHtml(res.statusText || "")}</span>` +
+    `<span class="dim"> · ${escapeHtml(res.contentType || "?")} · ${res.method} · ${res.elapsedMs} ms${res.redirected ? " · redirected" : ""}</span>`;
+  box.appendChild(line);
+
+  if (isExpanded) {
+    const headerRows = Object.entries(res.headers || {})
+      .map(([k, v]) => `<div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div>`)
+      .join("");
+    const meta = document.createElement("div");
+    meta.className = "resp-meta";
+    meta.innerHTML =
+      `<div class="kv"><div class="k">Final URL</div><div class="v">${escapeHtml(res.finalUrl || url)}</div></div>` +
+      `<div class="resp-h">Headers</div><div class="kv">${headerRows || '<div class="v dim">(none)</div>'}</div>`;
+    box.appendChild(meta);
+  }
+
+  if (preview) {
+    const pre = document.createElement("pre");
+    pre.className = "resp-body";
+    pre.textContent = preview + (!isExpanded && bodyText.length > 300 ? " …" : "") + (res.bodyTruncated && isExpanded ? "\n\n[body truncated]" : "");
+    box.appendChild(pre);
+  }
+
+  const toggle = document.createElement("button");
+  toggle.className = "resp-toggle";
+  toggle.textContent = isExpanded ? "▲ Less" : "▼ Details";
+  toggle.addEventListener("click", (e) => { e.stopPropagation(); toggleExpand(url); });
+  box.appendChild(toggle);
+
+  return box;
+}
+
+function onUrlClick(url) {
+  if (responseCache.has(url)) toggleExpand(url);
+  else fetchOne(url);
+}
+
+function toggleExpand(url) {
+  if (expanded.has(url)) expanded.delete(url);
+  else expanded.add(url);
+  render();
+}
+
 async function doFetch(url) {
   const res = await chrome.runtime.sendMessage({ type: "fetchUrl", url, method: methodEl.value });
   responseCache.set(url, res);
   return res;
 }
 
-async function showDetail(url) {
-  detailEl.classList.remove("hidden");
-  detailUrlEl.textContent = url;
-  detailOpenEl.onclick = () => chrome.tabs.create({ url, active: true });
-  detailBodyEl.innerHTML = `<div class="empty">Fetching…</div>`;
-
-  let res = responseCache.get(url);
-  if (!res) {
-    res = await doFetch(url);
-    render();
-  }
-  renderDetail(res);
+async function fetchOne(url, refetch) {
+  if (!refetch && responseCache.has(url)) return;
+  responseCache.set(url, { ok: true, status: 0, statusText: "…", pending: true, method: methodEl.value, elapsedMs: 0, contentType: "" });
+  render();
+  await doFetch(url);
+  render();
 }
 
 async function fetchAll() {
   const urls = visibleUrls().map((u) => u.url).filter((u) => !responseCache.has(u));
   if (!urls.length) {
-    flashSummary("Nothing new to fetch");
+    flashSummary("Everything shown is already fetched");
     return;
   }
   let done = 0;
@@ -215,45 +279,12 @@ async function fetchAll() {
       await doFetch(url);
       done++;
       summaryEl.textContent = `Fetching… ${done}/${urls.length}`;
-      render();
+      if (done % 3 === 0 || done === urls.length) render();
     }
   }
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker));
   render();
-  flashSummary(`Fetched ${done} URL${done === 1 ? "" : "s"}`);
-}
-
-function renderDetail(res) {
-  if (!res) {
-    detailBodyEl.innerHTML = `<div class="empty">No response.</div>`;
-    return;
-  }
-  if (!res.ok && res.error) {
-    detailBodyEl.innerHTML = `
-      <h2>Request failed</h2>
-      <pre>${escapeHtml(res.error)}</pre>
-      <div class="kv"><div class="k">Method</div><div class="v">${escapeHtml(res.method)}</div>
-      <div class="k">Time</div><div class="v">${res.elapsedMs} ms</div></div>`;
-    return;
-  }
-  const headerRows = Object.entries(res.headers || {})
-    .map(([k, v]) => `<div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v)}</div>`)
-    .join("");
-
-  detailBodyEl.innerHTML = `
-    <h2>Status</h2>
-    <div class="kv">
-      <div class="k">Method</div><div class="v">${escapeHtml(res.method)}</div>
-      <div class="k">Status</div><div class="v">${res.status} ${escapeHtml(res.statusText || "")}</div>
-      <div class="k">Final URL</div><div class="v">${escapeHtml(res.finalUrl || "")}</div>
-      <div class="k">Redirected</div><div class="v">${res.redirected ? "yes" : "no"}</div>
-      <div class="k">Content-Type</div><div class="v">${escapeHtml(res.contentType || "")}</div>
-      <div class="k">Time</div><div class="v">${res.elapsedMs} ms</div>
-    </div>
-    <h2>Response headers</h2>
-    <div class="kv">${headerRows || '<div class="v">(none)</div>'}</div>
-    <h2>Body${res.bodyTruncated ? " (truncated)" : ""}</h2>
-    <pre>${escapeHtml(res.body || "")}</pre>`;
+  flashSummary(`Fetched ${done} URL${done === 1 ? "" : "s"} — showing responses inline`);
 }
 
 async function copyVisible() {
@@ -273,24 +304,28 @@ function exportJson() {
       url: u.url,
       kinds: u.kinds,
       status: res ? (res.ok ? res.status : "failed") : null,
+      statusText: res && res.ok ? res.statusText : null,
       contentType: res && res.ok ? res.contentType : null,
+      headers: res && res.ok ? res.headers : null,
+      body: res && res.ok ? res.body : null,
+      error: res && !res.ok ? res.error : null,
     };
   });
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = "urls.json";
+  a.download = "urls-and-responses.json";
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  flashSummary(`Exported ${data.length} URLs`);
+  flashSummary(`Exported ${data.length} URLs + responses`);
 }
 
 let flashTimer;
 function flashSummary(msg) {
   clearTimeout(flashTimer);
   summaryEl.textContent = msg;
-  flashTimer = setTimeout(render, 1600);
+  flashTimer = setTimeout(render, 1800);
 }
 
 function escapeHtml(s) {

@@ -111,36 +111,39 @@ button:hover { border-color: var(--accent); }
 .row-actions { margin-left: auto; display: flex; gap: 4px; }
 .row-actions button { padding: 2px 8px; font-size: 12px; }
 
-.detail {
-  position: absolute;
-  inset: 0;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-}
-.detail.hidden { display: none; }
-.detail-head {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-.detail-url { word-break: break-all; font-size: 11px; color: var(--muted); }
-.detail-body { overflow: auto; padding: 10px; }
-.detail-body h2 { font-size: 11px; margin: 12px 0 4px; text-transform: uppercase; color: var(--muted); }
-.detail-body h2:first-child { margin-top: 0; }
-.detail-body pre {
-  margin: 0;
-  padding: 8px;
-  background: var(--chip);
+/* Inline response block shown under each fetched URL. */
+.resp {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
   border-radius: 6px;
+  background: var(--chip);
+}
+.resp-err { border-left-color: var(--err); }
+.resp-line { font-size: 12px; word-break: break-all; }
+.resp-line .dim, .dim { color: var(--muted); }
+.resp-meta { margin-top: 6px; }
+.resp-h { margin: 8px 0 3px; font-size: 10px; text-transform: uppercase; color: var(--muted); }
+.resp-body {
+  margin: 6px 0 0;
+  padding: 6px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 5px;
   white-space: pre-wrap;
   word-break: break-all;
-  max-height: 45vh;
+  max-height: 40vh;
   overflow: auto;
+  font: 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
-.kv { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 2px 10px; }
+.resp-toggle {
+  margin-top: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  background: transparent;
+}
+.kv { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 2px 10px; font-size: 11px; }
 .kv .k { color: var(--muted); word-break: break-all; }
 .kv .v { word-break: break-all; }
 .empty { padding: 24px 12px; text-align: center; color: var(--muted); }
