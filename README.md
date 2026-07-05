@@ -101,6 +101,23 @@ and anything else normally.
 
 ---
 
+## Upload your own images & videos to any site
+
+Two ways to get your own media into upload fields, on the phone or your desktop:
+
+- **Into any website's upload button — the Persona browser extension**
+  (`persona/`). Keep a personal library of images/videos and drop them into any
+  site's "choose file" field with one click, instead of browsing your disk every
+  time. Works in desktop Chrome/Edge/Brave **and** inside the Cloud Phone's
+  browser (via Kiwi Browser). See [`persona/README.md`](persona/README.md).
+- **Into the phone's own apps and gallery** (Instagram, WhatsApp, a dating
+  app's picker, the camera roll…):
+  ```bash
+  bash scripts/upload-media.sh selfie.jpg clip.mp4    # or a whole folder
+  ```
+  Copies your files into the phone's gallery so every app's photo/video picker
+  can select them. Works on both the Windows and VPS stacks.
+
 ## Why apps won't crash — what's handled for you
 
 | Usual crash cause | How this project handles it |
