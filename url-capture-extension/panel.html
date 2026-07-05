@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="panel.css" />
+  </head>
+  <body>
+    <header id="toolbar">
+      <button id="toggle" class="primary" title="Start or pause capturing">
+        <span class="dot"></span><span id="toggle-label">Recording</span>
+      </button>
+      <button id="clear" title="Discard all captured entries">Clear</button>
+
+      <span class="sep"></span>
+
+      <input id="filter" type="search" placeholder="Filter by URL, method or status…" />
+
+      <label class="chk" title="Also store response bodies (larger exports)">
+        <input id="capture-bodies" type="checkbox" checked /> bodies
+      </label>
+
+      <span class="spacer"></span>
+
+      <span id="count" class="count">0 requests</span>
+
+      <span class="sep"></span>
+
+      <button id="export-har" title="Export as HAR (open in any DevTools / Charles / Fiddler)">HAR</button>
+      <button id="export-json" title="Export as JSON">JSON</button>
+      <button id="export-csv" title="Export URL list as CSV">CSV</button>
+    </header>
+
+    <div id="split">
+      <div id="list-pane">
+        <table id="table">
+          <thead>
+            <tr>
+              <th class="col-method">Method</th>
+              <th class="col-status">Status</th>
+              <th class="col-type">Type</th>
+              <th class="col-url">URL</th>
+              <th class="col-size">Size</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty">
+          No requests captured yet. Reload the page you are inspecting and
+          network activity will appear here.
+        </div>
+      </div>
+
+      <div id="detail-pane" class="hidden">
+        <div class="detail-head">
+          <strong id="detail-title">Request detail</strong>
+          <button id="detail-close" title="Close">✕</button>
+        </div>
+        <div id="detail-body"></div>
+      </div>
+    </div>
+
+    <script src="panel.js"></script>
+  </body>
+</html>

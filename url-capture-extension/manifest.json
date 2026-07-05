@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "URL & Response Capture",
+  "version": "1.0.0",
+  "description": "Capture every URL a page requests plus the full response, and export it to a file (HAR / JSON / CSV). Works on any site via a DevTools panel.",
+  "permissions": [
+    "webRequest",
+    "storage",
+    "downloads"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "URL & Response Capture",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "devtools_page": "devtools.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
