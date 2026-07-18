@@ -1,0 +1,16 @@
+<!-- Loaded from vars.xml via: <X-PRE-PROCESS cmd="include" data="vars_local.xml"/>
+     Override core variables per-deployment. Values come from .env through
+     docker-compose environment substitution in the container entrypoint. -->
+<include>
+  <X-PRE-PROCESS cmd="set" data="domain=$${local_ip_v4}"/>
+  <X-PRE-PROCESS cmd="set" data="default_password=DO-NOT-USE-DEFAULTS"/>
+  <X-PRE-PROCESS cmd="set" data="outbound_caller_id_number=+254709100100"/>
+  <!-- WSS for browser softphones (SIP.js) — vanilla config binds :7443 when
+       certs exist in /etc/freeswitch/tls; Caddy can supply them. -->
+  <X-PRE-PROCESS cmd="set" data="internal_ssl_enable=true"/>
+  <!-- SIP trunk credentials (see sip_profiles/external/trunk.xml) -->
+  <X-PRE-PROCESS cmd="set" data="trunk_username=$${env(TRUNK_USERNAME)}"/>
+  <X-PRE-PROCESS cmd="set" data="trunk_password=$${env(TRUNK_PASSWORD)}"/>
+  <X-PRE-PROCESS cmd="set" data="trunk_realm=$${env(TRUNK_REALM)}"/>
+  <X-PRE-PROCESS cmd="set" data="trunk_proxy=$${env(TRUNK_PROXY)}"/>
+</include>

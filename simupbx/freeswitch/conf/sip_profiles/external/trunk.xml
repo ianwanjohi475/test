@@ -1,0 +1,15 @@
+<!-- Generic SIP trunk gateway. Fill the env vars in .env — works with
+     Telnyx, DIDWW, Safaricom SIP trunking, or any standard provider.
+     For Africa's Talking-only deployments this gateway can stay unregistered;
+     inbound + outbound then flow through the AT Voice API webhooks. -->
+<include>
+  <gateway name="trunk">
+    <param name="username" value="$${trunk_username}"/>
+    <param name="password" value="$${trunk_password}"/>
+    <param name="realm" value="$${trunk_realm}"/>
+    <param name="proxy" value="$${trunk_proxy}"/>
+    <param name="register" value="true"/>
+    <param name="retry-seconds" value="30"/>
+    <param name="caller-id-in-from" value="true"/>
+  </gateway>
+</include>

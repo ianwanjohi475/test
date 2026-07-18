@@ -1,0 +1,29 @@
+# Automatic HTTPS for the dashboard + API. Point your DNS A record at the VPS
+# and set DOMAIN in .env — Caddy fetches Let's Encrypt certs on first boot.
+
+{$DOMAIN} {
+    encode gzip
+
+    # API + provider webhooks
+    handle /api/pbx/* {
+        uri strip_prefix /api/pbx
+        reverse_proxy api:4000
+    }
+    handle /webhooks/* {
+        reverse_proxy api:4000
+    }
+    handle /realtime {
+        reverse_proxy api:4000
+    }
+
+    # Web app (Next.js)
+    handle {
+        reverse_proxy web:3000
+    }
+}
+
+# Browser softphone WSS → FreeSWITCH (running in host network mode on :7443).
+# SIP.js connects to wss://sip.<your-domain>:443 and Caddy terminates TLS.
+sip.{$DOMAIN} {
+    reverse_proxy host-gateway:5066
+}

@@ -1,0 +1,10 @@
+{
+  "name": "SimuPBX",
+  "short_name": "SimuPBX",
+  "description": "AI-powered business phone system — calls, queues, Zuri AI, M-Pesa, WhatsApp.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#070B14",
+  "theme_color": "#070B14",
+  "icons": []
+}

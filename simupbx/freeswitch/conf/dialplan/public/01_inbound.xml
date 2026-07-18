@@ -1,0 +1,15 @@
+<!-- Inbound from the SIP trunk (public context). DIDs land here; route each
+     to the IVR, a queue, or an extension. When using Africa's Talking Voice
+     API instead of a raw SIP trunk, inbound flows through the API webhooks
+     and this file is not used. -->
+<include>
+  <extension name="inbound_did">
+    <condition field="destination_number" expression="^\+?254709100100$">
+      <!-- Legal notice + IVR greeting, then main menu handled by ivr.conf -->
+      <action application="answer"/>
+      <action application="sleep" data="400"/>
+      <action application="playback" data="/etc/freeswitch/sounds/legal_notice.wav"/>
+      <action application="transfer" data="100 XML default"/>
+    </condition>
+  </extension>
+</include>

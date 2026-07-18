@@ -1,0 +1,77 @@
+name: simupbx
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: simupbx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: simupbx
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U simupbx']
+      interval: 5s
+      retries: 10
+
+  freeswitch:
+    image: safarov/freeswitch:latest
+    restart: unless-stopped
+    network_mode: host          # RTP needs the real interface; simplest + correct for a single VPS
+    env_file: .env
+    volumes:
+      - ./freeswitch/conf/dialplan:/etc/freeswitch/dialplan/simupbx:ro
+      - ./freeswitch/conf/autoload_configs/xml_curl.conf.xml:/etc/freeswitch/autoload_configs/xml_curl.conf.xml:ro
+      - ./freeswitch/conf/sip_profiles/external/trunk.xml:/etc/freeswitch/sip_profiles/external/trunk.xml:ro
+      - ./freeswitch/conf/vars_local.xml:/etc/freeswitch/vars_local.xml:ro
+      - recordings:/var/lib/freeswitch/recordings
+
+  api:
+    build: ./api
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://simupbx:${POSTGRES_PASSWORD}@postgres:5432/simupbx
+      FS_ESL_HOST: host-gateway   # freeswitch runs in host network mode
+    extra_hosts:
+      - 'host-gateway:host-gateway'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - recordings:/recordings:ro
+    ports:
+      - '127.0.0.1:4000:4000'
+
+  web:
+    build: ./web
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      NEXT_PUBLIC_SIP_DOMAIN: ${SIP_DOMAIN}
+      NEXT_PUBLIC_SIP_WSS: ${SIP_WSS_URL}
+    depends_on:
+      - api
+    ports:
+      - '127.0.0.1:3000:3000'
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:?set in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on:
+      - web
+      - api
+
+volumes:
+  pgdata:
+  recordings:
+  caddydata:
