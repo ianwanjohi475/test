@@ -63,6 +63,7 @@ export default function PhonePage() {
   const [engineLive, setEngineLive] = useState(false);
   const [screening, setScreening] = useState<string | null>(null);
   const [liveLines, setLiveLines] = useState<{ speaker: string; text: string; ai?: boolean }[]>([]);
+  const [linkedCall, setLinkedCall] = useState(false); // ringing on the user's own linked SIM
   const liveCallId = useRef<number | null>(null);
 
   useEffect(() => {
@@ -98,16 +99,20 @@ export default function PhonePage() {
         setRemote(ev.data.name as string);
         setNumber('');
         setScreening(ev.data.screening as string);
+        setLinkedCall(Boolean(ev.data.linked));
         setLiveLines([]);
         setPhase('ringing-in');
       } else if (ev.data.callId === liveCallId.current && liveCallId.current !== null) {
-        if (ev.event === 'call.transcript') {
+        if (ev.event === 'call.answered') {
+          setPhase('active');
+        } else if (ev.event === 'call.transcript') {
           setLiveLines((ls) => [...ls, { speaker: ev.data.speaker as string, text: ev.data.text as string }]);
         } else if (ev.event === 'call.assist') {
           setLiveLines((ls) => [...ls, { speaker: 'Zuri assist', text: ev.data.text as string, ai: true }]);
         } else if (ev.event === 'call.ended' || ev.event === 'call.missed') {
           liveCallId.current = null;
           setScreening(null);
+          setLinkedCall(false);
           setPhase('ended');
           setTimeout(() => setPhase('idle'), 900);
         }
@@ -346,7 +351,7 @@ export default function PhonePage() {
 
               {/* answer / hangup */}
               <div className="mt-8 flex items-center gap-8">
-                {phase === 'ringing-in' && (
+                {phase === 'ringing-in' && !linkedCall && (
                   <button
                     onClick={() => {
                       if (liveCallId.current !== null) {
@@ -362,8 +367,9 @@ export default function PhonePage() {
                 <button
                   onClick={() => {
                     if (liveCallId.current !== null) {
-                      apiPost(`/sim/calls/${liveCallId.current}/hangup`, {});
+                      if (!linkedCall) apiPost(`/sim/calls/${liveCallId.current}/hangup`, {});
                       liveCallId.current = null;
+                      setLinkedCall(false);
                       setScreening(null);
                       setPhase('ended');
                       setTimeout(() => setPhase('idle'), 900);
