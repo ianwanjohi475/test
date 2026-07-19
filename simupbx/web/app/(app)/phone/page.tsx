@@ -20,6 +20,7 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { Avatar, Badge, Card } from '@/components/ui';
+import { apiPost, openRealtime } from '@/lib/api';
 import { contacts, team } from '@/lib/demo';
 import { fmtClock } from '@/lib/format';
 import { Softphone, type CallPhase, type PhoneStatus } from '@/lib/sip';
@@ -58,6 +59,12 @@ export default function PhonePage() {
   const [showKeypadInCall, setShowKeypadInCall] = useState(false);
   const phoneRef = useRef<Softphone | null>(null);
 
+  // Live engine (local API + simulation/provider events over WebSocket)
+  const [engineLive, setEngineLive] = useState(false);
+  const [screening, setScreening] = useState<string | null>(null);
+  const [liveLines, setLiveLines] = useState<{ speaker: string; text: string; ai?: boolean }[]>([]);
+  const liveCallId = useRef<number | null>(null);
+
   useEffect(() => {
     const phone = new Softphone({
       onStatus: setStatus,
@@ -82,7 +89,33 @@ export default function PhonePage() {
     if (wss && domain && ext && pass) {
       phone.connect({ wssUrl: wss, domain, extension: ext, password: pass }).catch(() => setStatus('error'));
     }
+    // Realtime feed from the local API: incoming calls ring this softphone,
+    // transcripts stream into the assist panel — in real time.
+    const stopRealtime = openRealtime((ev) => {
+      setEngineLive(true);
+      if (ev.event === 'call.incoming' && liveCallId.current === null) {
+        liveCallId.current = ev.data.callId as number;
+        setRemote(ev.data.name as string);
+        setNumber('');
+        setScreening(ev.data.screening as string);
+        setLiveLines([]);
+        setPhase('ringing-in');
+      } else if (ev.data.callId === liveCallId.current && liveCallId.current !== null) {
+        if (ev.event === 'call.transcript') {
+          setLiveLines((ls) => [...ls, { speaker: ev.data.speaker as string, text: ev.data.text as string }]);
+        } else if (ev.event === 'call.assist') {
+          setLiveLines((ls) => [...ls, { speaker: 'Zuri assist', text: ev.data.text as string, ai: true }]);
+        } else if (ev.event === 'call.ended' || ev.event === 'call.missed') {
+          liveCallId.current = null;
+          setScreening(null);
+          setPhase('ended');
+          setTimeout(() => setPhase('idle'), 900);
+        }
+      }
+    });
+
     return () => {
+      stopRealtime();
       phone.disconnect().catch(() => undefined);
     };
   }, []);
@@ -123,19 +156,21 @@ export default function PhonePage() {
             <h1 className="text-lg font-bold text-white">Softphone</h1>
             <span
               className={`chip ${
-                status === 'registered'
+                status === 'registered' || engineLive
                   ? 'bg-brand-500/15 text-brand-300'
                   : status === 'demo'
                     ? 'bg-aiviolet-500/15 text-aiviolet-300'
                     : 'bg-amber-500/15 text-amber-300'
               }`}
             >
-              {status === 'registered' ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
+              {status === 'registered' || engineLive ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
               {status === 'registered'
                 ? 'Ext 100 · Registered'
-                : status === 'demo'
-                  ? 'Demo mode — connect PBX to go live'
-                  : status}
+                : engineLive
+                  ? 'Ext 100 · Live engine connected'
+                  : status === 'demo'
+                    ? 'Demo mode — start the API to go live'
+                    : status}
             </span>
           </div>
 
@@ -212,6 +247,13 @@ export default function PhonePage() {
                   </Badge>
                 )}
               </div>
+
+              {screening && (phase === 'ringing-in' || phase === 'active') && (
+                <div className="mt-3 flex max-w-xs items-start gap-2 rounded-xl border border-aiviolet-500/25 bg-aiviolet-500/10 p-3 text-xs leading-relaxed text-aiviolet-200">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  {screening}
+                </div>
+              )}
 
               {/* voice bars */}
               {phase === 'active' && (
@@ -306,14 +348,27 @@ export default function PhonePage() {
               <div className="mt-8 flex items-center gap-8">
                 {phase === 'ringing-in' && (
                   <button
-                    onClick={() => phoneRef.current?.answer()}
+                    onClick={() => {
+                      if (liveCallId.current !== null) {
+                        apiPost(`/sim/calls/${liveCallId.current}/answer`, {});
+                        setPhase('active');
+                      } else phoneRef.current?.answer();
+                    }}
                     className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-brand-500 text-ink-950 shadow-glow transition hover:bg-brand-400 active:scale-95"
                   >
                     <Phone className="h-6 w-6" />
                   </button>
                 )}
                 <button
-                  onClick={() => phoneRef.current?.hangup()}
+                  onClick={() => {
+                    if (liveCallId.current !== null) {
+                      apiPost(`/sim/calls/${liveCallId.current}/hangup`, {});
+                      liveCallId.current = null;
+                      setScreening(null);
+                      setPhase('ended');
+                      setTimeout(() => setPhase('idle'), 900);
+                    } else phoneRef.current?.hangup();
+                  }}
                   className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-rose-500 text-white transition hover:bg-rose-400 active:scale-95"
                 >
                   <PhoneOff className="h-6 w-6" />
@@ -359,8 +414,8 @@ export default function PhonePage() {
               <Badge tone="violet">agent-only</Badge>
             </div>
             {inCall && phase === 'active' ? (
-              <div className="space-y-3">
-                {LIVE_TRANSCRIPT.map((l, i) => (
+              <div className="max-h-[420px] space-y-3 overflow-y-auto">
+                {(liveLines.length ? liveLines : LIVE_TRANSCRIPT).map((l, i) => (
                   <div
                     key={i}
                     className={`rounded-xl p-3 text-xs leading-relaxed ${

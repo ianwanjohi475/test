@@ -31,6 +31,16 @@ inbox with missed-call auto-follow-up, smart callback queue, AI spam screening
 with whisper announce, voicemail urgency detection, live agent-assist panel,
 offline failover to mobile, personal `call.me/<name>` browser-call links.
 
+## Run it on YOUR desktop first (live, real time)
+
+```bash
+cd simupbx && bash run-desktop.sh        # or:  bash run-desktop.sh --app  (native window)
+```
+
+Calls ring your softphone, transcripts stream live, missed calls drop follow-ups
+into the inbox — the real engine, no telco account needed. Full guide:
+**[DESKTOP.md](./DESKTOP.md)**.
+
 ## Quick start (Ubuntu 22.04+ VPS, 4 GB RAM)
 
 ```bash

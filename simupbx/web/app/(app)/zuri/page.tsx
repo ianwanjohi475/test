@@ -16,6 +16,7 @@ import {
   Wand2,
 } from 'lucide-react';
 import { Badge, Card, SectionTitle, Toggle } from '@/components/ui';
+import { apiPost } from '@/lib/api';
 
 const INITIAL_FAQS = [
   { q: 'What are your opening hours?', a: 'Mon–Fri 8am–6pm, Saturday 9am–1pm. Closed Sundays and public holidays.' },
@@ -42,12 +43,26 @@ export default function ZuriPage() {
     { from: 'zuri', text: 'Habari! I\'m Zuri, your AI receptionist. Ask me anything a caller would — try Swahili too. 🎧' },
   ]);
 
-  const sendTest = () => {
+  const sendTest = async () => {
     if (!testMsg.trim()) return;
     const msg = testMsg;
     setChat((c) => [...c, { from: 'you', text: msg }]);
     setTestMsg('');
-    // Live mode: POST /api/pbx/ai/zuri/test — demo answers from the local KB.
+
+    // Live mode: the local API answers (real Claude when ANTHROPIC_API_KEY is set).
+    const history = [...chat, { from: 'you' as const, text: msg }]
+      .filter((m, i) => i > 0) // drop the canned greeting
+      .map((m) => ({ role: m.from === 'you' ? ('user' as const) : ('assistant' as const), content: m.text }));
+    const live = await apiPost<{ say: string; route: string | null }>('/sim/zuri', { history });
+    if (live?.say) {
+      setChat((c) => [
+        ...c,
+        { from: 'zuri', text: live.route ? `${live.say}  →  routing to ${live.route}` : live.say },
+      ]);
+      return;
+    }
+
+    // Demo fallback: answer from the local KB.
     setTimeout(() => {
       const kb = faqs.find((f) => msg.toLowerCase().split(' ').some((w) => w.length > 3 && f.q.toLowerCase().includes(w)));
       setChat((c) => [
@@ -56,7 +71,7 @@ export default function ZuriPage() {
           from: 'zuri',
           text: kb
             ? kb.a
-            : 'Asante! I\'d route this to the Sales team — nataka kukuunganisha na Amina. (Connect the API for live Claude answers.)',
+            : 'Asante! I\'d route this to the Sales team — nataka kukuunganisha na Amina. (Start the API for live Claude answers.)',
         },
       ]);
     }, 600);

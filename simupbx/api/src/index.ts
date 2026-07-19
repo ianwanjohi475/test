@@ -43,6 +43,17 @@ async function main(): Promise<void> {
 
   await migrate();
 
+  // Desktop / demo mode: live simulation engine drives calls, transcripts,
+  // inbox and presence in real time without a telco account.
+  if (process.env.SIMULATE === '1') {
+    const { seedDemoData, startSimulator } = await import('./services/simulator.js');
+    const { simRoutes } = await import('./routes/sim.js');
+    simRoutes(app);
+    await seedDemoData();
+    startSimulator(broadcast);
+    app.log.info('SIMULATE=1 — live simulation engine running');
+  }
+
   // FreeSWITCH event bridge → presence + CDR for on-prem SIP legs.
   esl.on('connected', () => app.log.info('FreeSWITCH ESL connected'));
   esl.on('error', () => undefined); // reconnect loop handles it
@@ -70,7 +81,7 @@ async function main(): Promise<void> {
       }
     }
   });
-  esl.connect();
+  if (process.env.SIMULATE !== '1') esl.connect(); // no FreeSWITCH in desktop mode
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
 }

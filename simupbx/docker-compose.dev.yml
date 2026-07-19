@@ -1,0 +1,22 @@
+# Desktop/dev mode: only Postgres in Docker; API + web run with npm for hot reload.
+name: simupbx-dev
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: simupbx
+      POSTGRES_PASSWORD: simupbx
+      POSTGRES_DB: simupbx
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U simupbx']
+      interval: 3s
+      retries: 20
+
+volumes:
+  pgdata_dev:
