@@ -11,6 +11,7 @@ import {
   MessageCircle,
   Phone,
   PhoneCall,
+  Rocket,
   Settings,
   Users,
   Voicemail as VoicemailIcon,
@@ -29,6 +30,7 @@ const NAV = [
   { href: '/team', label: 'Team', icon: Users },
   { href: '/zuri', label: 'Zuri AI', icon: Bot, ai: true },
   { href: '/analytics', label: 'Analytics', icon: ChartColumn },
+  { href: '/golive', label: 'Go Live', icon: Rocket, hot: true },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -58,14 +60,16 @@ export default function Shell({ children }: { children: React.ReactNode }) {
       <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col gap-6 border-r border-white/[0.06] p-4 lg:flex">
         <Logo />
         <nav className="flex flex-1 flex-col gap-1">
-          {NAV.map(({ href, label, icon: Icon, badge, ai }) => (
+          {NAV.map(({ href, label, icon: Icon, badge, ai, hot }) => (
             <Link
               key={href}
               href={href}
               className={`nav-item ${isActive(href) ? 'nav-item-active' : ''}`}
             >
               <Icon
-                className={`h-[18px] w-[18px] ${ai && !isActive(href) ? 'text-aiviolet-400' : ''}`}
+                className={`h-[18px] w-[18px] ${
+                  !isActive(href) && ai ? 'text-aiviolet-400' : !isActive(href) && hot ? 'text-brand-400' : ''
+                }`}
               />
               <span className="flex-1">{label}</span>
               {badge ? (

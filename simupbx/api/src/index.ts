@@ -11,6 +11,7 @@ import { summarizeCall } from './services/ai.js';
 import { apiRoutes } from './routes/api.js';
 import { webhookRoutes } from './routes/webhooks.js';
 import { freeswitchRoutes } from './routes/freeswitch.js';
+import { goliveRoutes } from './routes/golive.js';
 
 const app = Fastify({ logger: true });
 
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
   apiRoutes(app);
   webhookRoutes(app);
   freeswitchRoutes(app);
+  goliveRoutes(app);
 
   await migrate();
 
