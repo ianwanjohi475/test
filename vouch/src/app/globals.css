@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* "Reputation, earned." — brand tokens (Section 9) */
+    --ink: #14251e;
+    --evergreen: #0f5132;
+    --evergreen-hover: #0b3d26;
+    --gold: #e6a312;
+    --gold-soft: #f7e6bf;
+    --paper: #fbfaf7;
+    --card: #ffffff;
+    --border: #e9e6df;
+    --muted: #6b7a72;
+    --danger: #b4432f;
+    --success: #0f5132;
+  }
+
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Metrics and other numerics read as tabular figures. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  /* Visible, consistent focus for keyboard users everywhere. */
+  :focus-visible {
+    outline: 2px solid var(--evergreen);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Respect users who prefer reduced motion. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
