@@ -1,44 +1,73 @@
-import type { LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
 
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 /**
- * A single headline metric. Numbers are tabular. Stays quiet so the star meter
- * and trend chart land.
+ * A headline metric card. `featured` renders the filled evergreen treatment
+ * (one per row, like the reference's dark card). Numbers are tabular.
+ * `hint` is neutral context — we don't invent month-over-month deltas.
  */
 export function StatCard({
   label,
   value,
   hint,
-  icon: Icon,
-  accent = false,
+  href,
+  featured = false,
 }: {
   label: string;
   value: string;
   hint?: string;
-  icon: LucideIcon;
-  accent?: boolean;
+  href: string;
+  featured?: boolean;
 }) {
   return (
-    <Card className="p-5">
+    <div
+      className={cn(
+        "group relative flex flex-col justify-between gap-6 rounded-card border p-5 transition-shadow",
+        featured
+          ? "border-transparent bg-evergreen text-paper shadow-panel rings"
+          : "border-border bg-card text-ink shadow-card hover:shadow-panel"
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-sm text-muted">{label}</p>
-          <p className="tabular font-display text-xl font-semibold text-ink">
-            {value}
-          </p>
-        </div>
-        <span
+        <p
           className={cn(
-            "grid h-9 w-9 shrink-0 place-items-center rounded-md",
-            accent ? "bg-gold-soft text-ink" : "bg-evergreen/10 text-evergreen"
+            "text-sm font-medium",
+            featured ? "text-paper/80" : "text-muted"
           )}
         >
-          <Icon className="h-[18px] w-[18px]" aria-hidden />
-        </span>
+          {label}
+        </p>
+        <Link
+          href={href}
+          aria-label={`View ${label.toLowerCase()}`}
+          className={cn(
+            "grid h-8 w-8 shrink-0 place-items-center rounded-full border transition",
+            featured
+              ? "border-white/25 text-paper hover:bg-white/10"
+              : "border-border text-ink hover:border-evergreen hover:text-evergreen"
+          )}
+        >
+          <ArrowUpRight className="h-4 w-4" aria-hidden />
+        </Link>
       </div>
-      {hint && <p className="mt-3 text-xs text-muted">{hint}</p>}
-    </Card>
+
+      <div className="space-y-2">
+        <p className="tabular font-display text-[2.25rem] font-semibold leading-none">
+          {value}
+        </p>
+        {hint && (
+          <p
+            className={cn(
+              "text-xs",
+              featured ? "text-paper/70" : "text-muted"
+            )}
+          >
+            {hint}
+          </p>
+        )}
+      </div>
+    </div>
   );
 }

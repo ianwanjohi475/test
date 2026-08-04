@@ -8,14 +8,17 @@
     --ink: #14251e;
     --evergreen: #0f5132;
     --evergreen-hover: #0b3d26;
+    --evergreen-deep: #0a3321;
     --gold: #e6a312;
     --gold-soft: #f7e6bf;
     --paper: #fbfaf7;
+    --wash: #eceae3; /* warm page background behind floating panels */
     --card: #ffffff;
     --border: #e9e6df;
     --muted: #6b7a72;
     --danger: #b4432f;
     --success: #0f5132;
+    --info: #2f6f8f;
   }
 
   * {
@@ -27,7 +30,7 @@
   }
 
   body {
-    background-color: var(--paper);
+    background-color: var(--wash);
     color: var(--ink);
     font-feature-settings: "cv11", "ss01";
     -webkit-font-smoothing: antialiased;
@@ -44,10 +47,9 @@
   :focus-visible {
     outline: 2px solid var(--evergreen);
     outline-offset: 2px;
-    border-radius: 4px;
+    border-radius: 6px;
   }
 
-  /* Respect users who prefer reduced motion. */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -58,4 +60,43 @@
       scroll-behavior: auto !important;
     }
   }
+}
+
+@layer components {
+  /* Diagonal hatch used for "no data" bars — reads as designed, not broken. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--border) 0,
+      var(--border) 1.5px,
+      transparent 1.5px,
+      transparent 7px
+    );
+  }
+
+  /* Faint concentric rings for the dark highlight card. */
+  .rings {
+    background-image: radial-gradient(
+        circle at 85% 15%,
+        rgba(230, 163, 18, 0.14),
+        transparent 45%
+      ),
+      repeating-radial-gradient(
+        circle at 85% 15%,
+        rgba(255, 255, 255, 0.05) 0,
+        rgba(255, 255, 255, 0.05) 1px,
+        transparent 1px,
+        transparent 22px
+      );
+  }
+}
+
+/* Quiet, thin scrollbars inside panels. */
+.scroll-slim::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
 }

@@ -11,12 +11,14 @@ const config: Config = {
       colors: {
         ink: "var(--ink)",
         paper: "var(--paper)",
+        wash: "var(--wash)",
         card: "var(--card)",
         border: "var(--border)",
         muted: "var(--muted)",
         evergreen: {
           DEFAULT: "var(--evergreen)",
           hover: "var(--evergreen-hover)",
+          deep: "var(--evergreen-deep)",
         },
         gold: {
           DEFAULT: "var(--gold)",
@@ -24,6 +26,7 @@ const config: Config = {
         },
         danger: "var(--danger)",
         success: "var(--success)",
+        info: "var(--info)",
         // Focus ring
         ring: "var(--evergreen)",
       },
@@ -45,10 +48,13 @@ const config: Config = {
         lg: "10px",
         md: "8px",
         sm: "6px",
+        card: "16px",
+        panel: "22px",
       },
       boxShadow: {
-        // One shadow token, subtle.
         card: "0 1px 2px rgba(20, 37, 30, 0.04), 0 4px 16px rgba(20, 37, 30, 0.05)",
+        panel: "0 6px 28px rgba(20, 37, 30, 0.06)",
+        lift: "0 10px 34px rgba(20, 37, 30, 0.09)",
       },
       keyframes: {
         "accordion-down": {
