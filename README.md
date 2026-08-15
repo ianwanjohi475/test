@@ -22,7 +22,7 @@ often taken.
 In your **Ubuntu (WSL2) terminal**:
 
 ```bash
-git clone -b claude/cloud-phone-apps-hupje2 https://github.com/ianwanjohi475/test.git cloud-phone
+git clone -b cloud-phone-apps-hupje2 https://github.com/ianwanjohi475/test.git cloud-phone
 cd cloud-phone
 bash windows/quickstart.sh
 ```
